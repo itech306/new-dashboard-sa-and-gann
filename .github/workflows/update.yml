@@ -1,0 +1,49 @@
+name: Daily EOD update
+
+on:
+  schedule:
+    # 13:30 UTC = 7:00 PM IST, Monday to Friday (bhavcopy is out by then)
+    - cron: "30 13 * * 1-5"
+  workflow_dispatch: {}
+  push:
+    # sector_map.csv me naya IPO add karte hi screener_data.json dobara ban jaata hai
+    paths:
+      - "sector_map.csv"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eod-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas requests
+      # history.csv.gz bada hai, repo me commit nahi karte (repo bhari ho jaata hai). Cache me rakhte hain.
+      # Cache kho jaye to update.py ~750 din ka data dobara download kar leta hai.
+      - name: Restore price history
+        uses: actions/cache@v4
+        with:
+          path: history.csv.gz
+          key: price-history-${{ github.run_id }}
+          restore-keys: |
+            price-history-
+      - run: python update.py
+      - name: Commit new data
+        run: |
+          git config user.name "sa-monitor-bot"
+          git config user.email "sa-monitor-bot@users.noreply.github.com"
+          git add data.json screener_data.json
+          git add gann_data.json || true
+          git add listing_dates.csv || true
+          git diff --cached --quiet || git commit -m "EOD data update $(date -u +%F)"
+          git pull --rebase origin ${GITHUB_REF_NAME} || true
+          git push
