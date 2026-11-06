@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}html,body{margin:0}[hidden]{display:none!important}</style>
+<title>Gann Price and Time Screener</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column. Date + period controls, 7-screener strip (counts), tiles, group-mover bars, stock table, unmapped (IPO) panel. */
+:root{
+  --bg:#eff3f2; --surface:#ffffff; --surface2:#e7eeec; --fg:#12201d; --muted:#566763; --line:#d6dfdc;
+  --accent:#0d7a70; --accent-soft:#d3ebe7; --ipo:#2457d6; --ipo-soft:#dbe5fb; --up:#12805c; --warn:#a16207; --warn-soft:#f6ecd2;
+  --font-ui:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1311; --surface:#121c1a; --surface2:#182623; --fg:#e3ece9; --muted:#8da29d; --line:#25342f;
+  --accent:#3cc2b3; --accent-soft:#12302d; --ipo:#6c97ff; --ipo-soft:#18274d; --up:#4cc79a; --warn:#e2b24a; --warn-soft:#2c2614; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1311; --surface:#121c1a; --surface2:#182623; --fg:#e3ece9; --muted:#8da29d; --line:#25342f;
+  --accent:#3cc2b3; --accent-soft:#12302d; --ipo:#6c97ff; --ipo-soft:#18274d; --up:#4cc79a; --warn:#e2b24a; --warn-soft:#2c2614; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:15px;line-height:1.5;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
+h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+.sub a{color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.demo{background:var(--warn-soft);border:1px solid var(--warn);color:var(--fg);border-radius:8px;padding:10px 14px;font-size:13px}
+.demo b{color:var(--warn)}
+label,.lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+select,input[type=search]{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:inherit;font-family:var(--font-num);font-size:13px}
+button{font:inherit;cursor:pointer;color:var(--fg)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:7px 16px;border-radius:6px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--accent-soft);color:var(--fg);font-weight:600}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.win{font-family:var(--font-num);font-size:13px;color:var(--muted);align-self:center;padding-top:16px}
+.win b{color:var(--fg);font-weight:500}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:8px}
+.sc{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.sc:hover{border-color:var(--accent)}
+.sc[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+.sc .n{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc .c{font-family:var(--font-num);font-size:24px;font-weight:600;line-height:1.15}
+.sc .c.zero{color:var(--muted);font-weight:400}
+.sc .r{font-size:11px;color:var(--muted)}
+.rule{font-size:13px;color:var(--muted);padding:2px 2px}
+.rule b{color:var(--fg);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tile{padding:12px 16px}
+.tile .v{font-family:var(--font-num);font-size:30px;font-weight:600;line-height:1.15;display:block}
+.tile .k{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.hd h2{margin:0;font-size:14px;font-weight:600}
+.hd .hint{font-size:12px;color:var(--muted);font-weight:400}
+.btn{background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-size:13px}
+.btn:hover{border-color:var(--accent)}
+.bars{padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.bar{display:grid;grid-template-columns:minmax(96px,190px) 1fr 84px;gap:10px;align-items:center;border:0;background:transparent;text-align:left;padding:3px 0;border-radius:4px;width:100%}
+.bar:hover .n{color:var(--accent)}
+.bar .n{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t{height:12px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.bar .t{display:flex}
+.bar .f{height:100%;background:var(--accent);min-width:2px}
+.bar .f.i{background:var(--ipo);min-width:0}
+.bar .f:last-child{border-radius:0 4px 4px 0}
+.bar.un .f{background:var(--warn)}
+.bar .v small{color:var(--ipo);font-size:11px}
+.tg{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px}
+.tg[aria-pressed=true]{border-color:var(--ipo);background:var(--ipo-soft)}
+.tg i{width:10px;height:10px;border-radius:2px;background:var(--ipo)}
+.badge{display:inline-block;font-family:var(--font-ui);font-size:10px;font-weight:600;letter-spacing:.04em;padding:0 5px;border-radius:3px;background:var(--ipo-soft);color:var(--ipo);margin-left:6px;vertical-align:1px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);padding:0 16px 12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.bar .v{white-space:nowrap;text-align:right;font-family:var(--font-num);font-size:13px}
+.bar[aria-pressed=true] .n{font-weight:700;color:var(--accent)}
+.empty{padding:28px 16px;color:var(--muted);text-align:center}
+.filt{display:inline-flex;gap:6px;align-items:center;background:var(--accent-soft);border-radius:12px;padding:2px 4px 2px 10px;font-size:12px}
+.filt button{border:0;background:transparent;font-size:14px;line-height:1;padding:2px 6px;color:var(--muted)}
+#q{width:230px;max-width:100%}
+.scroll{overflow:auto;max-height:520px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
+th{position:sticky;top:0;background:var(--surface);text-align:left;font-weight:500;font-size:11px;letter-spacing:.04em;color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none}
+th[data-dir]::after{content:attr(data-dir);margin-left:5px;color:var(--accent)}
+td{padding:8px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+td .un{color:var(--warn)}
+.up{color:var(--up)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px}
+.chip{font-family:var(--font-num);font-size:12px;padding:2px 8px;border-radius:4px;background:var(--warn-soft);border:1px solid var(--warn);color:var(--warn)}
+.note{padding:0 16px 14px;color:var(--muted);font-size:13px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .2s;font-size:13px}
+.toast.on{opacity:1}
+@media (max-width:520px){.bar{grid-template-columns:96px 1fr 80px}.win{padding-top:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style><style>
+.chips2{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px}
+.chip2{font-size:12px;padding:3px 9px;border-radius:12px;background:var(--accent-soft);border:1px solid var(--line)}
+.chip2 b{font-family:var(--font-num);font-weight:600;margin-left:4px}
+.tag{display:inline-block;font-family:var(--font-num);font-size:11px;padding:1px 6px;border-radius:3px;margin:1px 4px 1px 0;background:var(--surface2);border:1px solid var(--line)}
+.tag.h{color:#b4233a;border-color:#b4233a}.tag.l{color:var(--up);border-color:var(--up)}
+.tag.cl{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);font-weight:600}
+td.wr{white-space:normal;min-width:190px}
+.mini{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Gann Price and Time Screener</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+  </header>
+  <div id="err" class="demo" hidden></div>
+
+  <div class="controls">
+    <div class="field"><span class="lbl">Module</span>
+      <div class="seg" id="mod" role="group" aria-label="Module">
+        <button type="button" data-v="pt">Price-to-Time</button><button type="button" data-v="c369">3-6-9 Cluster</button>
+      </div></div>
+    <div class="field"><span class="lbl">Swing strength (bars each side)</span>
+      <div class="seg" id="str" role="group" aria-label="Swing strength"></div></div>
+    <div class="field"><span class="lbl">Top 5 groups</span>
+      <div class="seg" id="win" role="group" aria-label="Group window">
+        <button type="button" data-v="w">Weekly</button><button type="button" data-v="m">Monthly</button>
+      </div></div>
+    <div class="field" id="c369opts"><span class="lbl">369 settings</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="seg" id="cmode" role="group" aria-label="Calculation mode"><button type="button" data-v="b">Bars</button><button type="button" data-v="d">Calendar days</button></div>
+        <div class="seg" id="cmin" role="group" aria-label="Min lines"><button type="button" data-v="1">1+ line</button><button type="button" data-v="2">Cluster (2)</button></div>
+      </div></div>
+  </div>
+
+  <div class="rule" id="rule"></div>
+
+  <div class="tiles">
+    <div class="card tile"><span class="k">Aaj ke hits</span><span class="v" id="t1">0</span><span class="k" id="t1s"></span></div>
+    <div class="card tile"><span class="k">Universe</span><span class="v" id="t2">0</span><span class="k">liquid stocks top 5 groups me</span></div>
+  </div>
+
+  <div class="grid2">
+    <section class="card"><div class="hd"><h2>Top 5 Industry <span class="hint" id="gw"></span></h2></div><div class="chips2" id="gi"></div></section>
+    <section class="card"><div class="hd"><h2>Top 5 Subgroup</h2></div><div class="chips2" id="gs"></div></section>
+  </div>
+
+  <section class="card">
+    <div class="hd"><h2>Stocks</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input type="search" id="q" placeholder="Stock ya industry khojein" aria-label="Search"><button class="btn" id="cp" type="button">Symbols copy (TradingView)</button></div></div>
+    <div class="scroll"><table id="tb"></table></div>
+  </section>
+  <div class="note card" style="padding:12px 16px">Anchor = latest confirmed swing high (H) aur swing low (L), Pine script ke <span class="num">pivothigh / pivotlow</span> jaisa. Sirf aaj ka bar dekha jaata hai, na past na future. Prices split/bonus adjusted hain. Liquidity: SMA(close x volume, 20) &gt; 3 crore aur close &gt; 20.</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fd=s=>{const [y,m,d]=s.split('-');return `${d} ${MON[+m-1]} ${y.slice(2)}`};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)}
+let D=null,S={mod:'pt',str:'20',win:'w',cmode:'b',cmin:'2',sort:['Stock',1]};
+
+function hitsOf(r){
+  if(S.mod==='pt')return (r.pt[S.str]||[]).map(([a,i,b])=>({a,txt:`x${i} (${b} bars)`}));
+  const L=(S.cmode==='b'?r.cb:r.cd)[S.str]||[];
+  if(L.length<+S.cmin)return [];
+  const u=S.cmode==='b'?'':' din';
+  return L.map(([a,c])=>({a,txt:`+${c}${u}`,cl:L.length>=2}));
+}
+function rows(){
+  const q=$('#q').value.trim().toLowerCase();
+  return D.stocks.filter(r=>r.f[S.win]).map(r=>({r,h:hitsOf(r)})).filter(x=>x.h.length)
+    .filter(x=>!q||(x.r.s+' '+x.r.i+' '+x.r.g).toLowerCase().includes(q));
+}
+function seg(id,opts,key){
+  $(id).innerHTML=opts.map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${S[key]===v}">${t}</button>`).join('');
+}
+function anchorCell(r){
+  const a=r.a[S.str]||{};
+  return ['H','L'].map(t=>a[t]?`<span class="tag ${t.toLowerCase()}">${t} ${a[t][1]}</span><span class="mini">${fd(a[t][0])} (${a[t][2]} bars)</span>`:'').join('<br>');
+}
+function render(){
+  seg('#mod',[['pt','Price-to-Time'],['c369','3-6-9 Cluster']],'mod');
+  seg('#str',D.strengths.map(x=>[String(x),String(x)]),'str');
+  seg('#win',[['w','Weekly'],['m','Monthly']],'win');
+  seg('#cmode',[['b','Bars'],['d','Calendar days']],'cmode');
+  seg('#cmin',[['1','1+ line'],['2','Cluster (2)']],'cmin');
+  $('#c369opts').hidden=S.mod!=='c369';
+  const g=D.groups[S.win],w=D.windows[S.win];
+  $('#gw').textContent=`${fd(w.start)} se ${fd(w.end)}`;
+  const chip=a=>a.length?a.map(([n,c])=>`<span class="chip2">${esc(n)}<b>${c}</b></span>`).join(''):'<span class="mini">Is window me koi group nahi</span>';
+  $('#gi').innerHTML=chip(g.ind);$('#gs').innerHTML=chip(g.sub);
+  $('#rule').innerHTML=S.mod==='pt'
+    ?`<b>Price-to-Time:</b> aaj ka bar = anchor bar + round(base x i), i = 1 se 9. Base = anchor price ko 10 ki power se chhota karke (2 digit ke aas-paas). Swing strength ${S.str} bars.`
+    :`<b>3-6-9 Cluster:</b> aaj ka bar = anchor ${S.cmode==='b'?'bar':'date'} + ${D.cycles.join(', ')}${S.cmode==='b'?' bars':' din'}. H aur L dono anchors ki line ek hi din mile to cluster. Swing strength ${S.str} bars.`;
+  const rs=rows();
+  $('#t1').textContent=rs.length;
+  $('#t1s').textContent=`${S.mod==='pt'?'Price-to-Time':'369'} · strength ${S.str}`;
+  $('#t2').textContent=D.universe[S.win];
+  table(rs);
+}
+function table(rs){
+  const cols=[['Stock','s'],['Industry','i'],['Subgroup','g'],['Close','c','r'],['Anchors',null],['Aaj ka hit',null],['Liq (Cr)','v','r']];
+  const [sc,sd]=S.sort,key={'Stock':'s','Industry':'i','Subgroup':'g','Close':'c','Liq (Cr)':'v'}[sc]||'s';
+  rs=[...rs].sort((a,b)=>{const x=a.r[key],y=b.r[key];return (typeof x==='number'?x-y:String(x).localeCompare(String(y)))*sd});
+  window.__rs=rs;
+  $('#tb').innerHTML='<thead><tr>'+cols.map(c=>`<th class="${c[2]||''}" data-c="${c[0]}"${sc===c[0]?` data-dir="${sd>0?'↑':'↓'}"`:''}>${c[0]}</th>`).join('')+'</tr></thead><tbody>'+
+    (rs.length?rs.map(({r,h})=>`<tr><td class="num">${esc(r.s)}${r.sh[S.win]?'<span class="badge">SCREENER</span>':''}</td><td>${esc(r.i)}</td><td>${esc(r.g)}</td><td class="num r">${r.c}</td><td class="wr">${anchorCell(r)}</td><td class="wr">${h.map(x=>`<span class="tag ${x.cl?'cl':x.a.toLowerCase()}">${x.a} ${esc(x.txt)}</span>`).join('')}${S.mod==='c369'&&h.length>=2?'<span class="tag cl">CLUSTER</span>':''}</td><td class="num r">${r.v}</td></tr>`).join(''):
+    `<tr><td colspan="7" class="empty">Is setting me aaj koi stock nahi.</td></tr>`)+'</tbody>';
+  document.querySelectorAll('#tb th').forEach(th=>{if(!th.dataset.c||['Anchors','Aaj ka hit'].includes(th.dataset.c))return;th.onclick=()=>{const c=th.dataset.c;S.sort=[c,S.sort[0]===c?-S.sort[1]:1];render()}});
+}
+for(const [id,k] of [['#mod','mod'],['#str','str'],['#win','win'],['#cmode','cmode'],['#cmin','cmin']])
+  $(id).onclick=e=>{const b=e.target.closest('button');if(!b)return;S[k]=b.dataset.v;render()};
+$('#q').oninput=render;
+$('#cp').onclick=async()=>{const t=(window.__rs||[]).map(x=>'NSE:'+x.r.s).join(',');
+  try{await navigator.clipboard.writeText(t);toast('Symbols copy ho gaye')}catch(e){toast('Copy nahi ho payi')}};
+fetch('gann_data.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(d=>{
+  D=d;$('#sub').innerHTML=`NSE EOD data, aakhri din <b class="num">${fd(D.updated)}</b> &middot; <a href="index.html">SA Market Monitor</a> &middot; <a href="screeners.html">Sector &amp; Group Movers</a>`;render()
+}).catch(()=>{const e=$('#err');e.hidden=false;e.textContent='gann_data.json nahi mili. GitHub Actions me "Daily EOD update" ek baar chalayein.'});
+</script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Sourav Strong Sector and Group Mover Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column. Date + period controls, 7-screener strip (counts), tiles, group-mover bars, stock table, unmapped (IPO) panel. */
+:root{
+  --bg:#eff3f2; --surface:#ffffff; --surface2:#e7eeec; --fg:#12201d; --muted:#566763; --line:#d6dfdc;
+  --accent:#0d7a70; --accent-soft:#d3ebe7; --ipo:#2457d6; --ipo-soft:#dbe5fb; --up:#12805c; --warn:#a16207; --warn-soft:#f6ecd2;
+  --font-ui:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1311; --surface:#121c1a; --surface2:#182623; --fg:#e3ece9; --muted:#8da29d; --line:#25342f;
+  --accent:#3cc2b3; --accent-soft:#12302d; --ipo:#6c97ff; --ipo-soft:#18274d; --up:#4cc79a; --warn:#e2b24a; --warn-soft:#2c2614; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1311; --surface:#121c1a; --surface2:#182623; --fg:#e3ece9; --muted:#8da29d; --line:#25342f;
+  --accent:#3cc2b3; --accent-soft:#12302d; --ipo:#6c97ff; --ipo-soft:#18274d; --up:#4cc79a; --warn:#e2b24a; --warn-soft:#2c2614; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:15px;line-height:1.5;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
+h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+.sub a{color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.demo{background:var(--warn-soft);border:1px solid var(--warn);color:var(--fg);border-radius:8px;padding:10px 14px;font-size:13px}
+.demo b{color:var(--warn)}
+label,.lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+select,input[type=search]{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:inherit;font-family:var(--font-num);font-size:13px}
+button{font:inherit;cursor:pointer;color:var(--fg)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:7px 16px;border-radius:6px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--accent-soft);color:var(--fg);font-weight:600}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.win{font-family:var(--font-num);font-size:13px;color:var(--muted);align-self:center;padding-top:16px}
+.win b{color:var(--fg);font-weight:500}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:8px}
+.sc{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.sc:hover{border-color:var(--accent)}
+.sc[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+.sc .n{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc .c{font-family:var(--font-num);font-size:24px;font-weight:600;line-height:1.15}
+.sc .c.zero{color:var(--muted);font-weight:400}
+.sc .r{font-size:11px;color:var(--muted)}
+.rule{font-size:13px;color:var(--muted);padding:2px 2px}
+.rule b{color:var(--fg);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tile{padding:12px 16px}
+.tile .v{font-family:var(--font-num);font-size:30px;font-weight:600;line-height:1.15;display:block}
+.tile .k{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.hd h2{margin:0;font-size:14px;font-weight:600}
+.hd .hint{font-size:12px;color:var(--muted);font-weight:400}
+.btn{background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-size:13px}
+.btn:hover{border-color:var(--accent)}
+.bars{padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.bar{display:grid;grid-template-columns:minmax(96px,190px) 1fr 84px;gap:10px;align-items:center;border:0;background:transparent;text-align:left;padding:3px 0;border-radius:4px;width:100%}
+.bar:hover .n{color:var(--accent)}
+.bar .n{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t{height:12px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.bar .t{display:flex}
+.bar .f{height:100%;background:var(--accent);min-width:2px}
+.bar .f.i{background:var(--ipo);min-width:0}
+.bar .f:last-child{border-radius:0 4px 4px 0}
+.bar.un .f{background:var(--warn)}
+.bar .v small{color:var(--ipo);font-size:11px}
+.tg{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px}
+.tg[aria-pressed=true]{border-color:var(--ipo);background:var(--ipo-soft)}
+.tg i{width:10px;height:10px;border-radius:2px;background:var(--ipo)}
+.badge{display:inline-block;font-family:var(--font-ui);font-size:10px;font-weight:600;letter-spacing:.04em;padding:0 5px;border-radius:3px;background:var(--ipo-soft);color:var(--ipo);margin-left:6px;vertical-align:1px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);padding:0 16px 12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.bar .v{white-space:nowrap;text-align:right;font-family:var(--font-num);font-size:13px}
+.bar[aria-pressed=true] .n{font-weight:700;color:var(--accent)}
+.empty{padding:28px 16px;color:var(--muted);text-align:center}
+.filt{display:inline-flex;gap:6px;align-items:center;background:var(--accent-soft);border-radius:12px;padding:2px 4px 2px 10px;font-size:12px}
+.filt button{border:0;background:transparent;font-size:14px;line-height:1;padding:2px 6px;color:var(--muted)}
+#q{width:230px;max-width:100%}
+.scroll{overflow:auto;max-height:520px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
+th{position:sticky;top:0;background:var(--surface);text-align:left;font-weight:500;font-size:11px;letter-spacing:.04em;color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none}
+th[data-dir]::after{content:attr(data-dir);margin-left:5px;color:var(--accent)}
+td{padding:8px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+td .un{color:var(--warn)}
+.up{color:var(--up)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px}
+.chip{font-family:var(--font-num);font-size:12px;padding:2px 8px;border-radius:4px;background:var(--warn-soft);border:1px solid var(--warn);color:var(--warn)}
+.note{padding:0 16px 14px;color:var(--muted);font-size:13px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .2s;font-size:13px}
+.toast.on{opacity:1}
+@media (max-width:520px){.bar{grid-template-columns:96px 1fr 80px}.win{padding-top:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Sourav Strong Sector and Group Mover Finder</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="field"><label for="asof">Date tak</label><select id="asof"></select></div>
+  </header>
+  <div class="demo" id="demo" hidden><b>DEMO DATA.</b> Ye random banaya hua sample hai, asli NSE data nahi. Stocks ke naam aapki sector file ke hain, lekin price moves aur IPO listing dates nakli hain. Asli site par ye roz shaam NSE bhavcopy aur NSE listing dates se apne aap bharta hai.</div>
+  <div id="err" class="demo" hidden></div>
+
+  <div class="controls">
+    <div class="field"><span class="lbl">Period</span>
+      <div class="seg" id="seg" role="group" aria-label="Period">
+        <button type="button" data-p="d">Daily</button><button type="button" data-p="w">Weekly</button><button type="button" data-p="m">Monthly</button>
+      </div></div>
+    <div class="win" id="win"></div>
+    <div class="field"><span class="lbl">Filter</span><button type="button" class="tg" id="ipoT" aria-pressed="false"><i></i>Sirf IPO (last 1 year)</button></div>
+  </div>
+
+  <div class="strip" id="strip"></div>
+  <div class="rule" id="rule"></div>
+
+  <div class="tiles">
+    <div class="card tile"><span class="k">Stocks</span><span class="v" id="t1">0</span><span class="k" id="t1s"></span></div>
+    <div class="card tile"><span class="k">Industries</span><span class="v" id="t2">0</span><span class="k">alag industry</span></div>
+    <div class="card tile"><span class="k">Subgroups</span><span class="v" id="t3">0</span><span class="k">alag subgroup</span></div>
+  </div>
+
+  <div class="grid2">
+    <section class="card"><div class="hd"><h2>Group movers: Industry <span class="hint">top 10, bar dabao to filter</span></h2></div><div class="bars" id="bi"></div><div class="legend"><span><i style="background:var(--accent)"></i>Purane stocks</span><span><i style="background:var(--ipo)"></i>IPO (last 1 year)</span></div></section>
+    <section class="card"><div class="hd"><h2>Group movers: Subgroup <span class="hint">top 10</span></h2></div><div class="bars" id="bs"></div></section>
+  </div>
+
+  <section class="card">
+    <div class="hd"><h2>Stocks <span class="filt" id="filt" hidden></span></h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input type="search" id="q" placeholder="Stock ya industry khojein" aria-label="Search"><button class="btn" id="xl" type="button">Export to Excel</button></div></div>
+    <div class="scroll"><table id="tb"></table></div>
+  </section>
+
+  <section class="card" id="unw" hidden>
+    <div class="hd"><h2>Sector file me nahi mile <span class="hint" id="unc"></span></h2><button class="btn" id="cpu" type="button">CSV lines copy karein</button></div>
+    <div class="chips" id="unl"></div>
+    <div class="note">Jo naye stock abhi tak aapki file me nahi hain wo yahan aate hain. Inhe <span class="num">sector_map.csv</span> me industry aur subgroup ke saath daal dein. Agle run me ye apne aap sahi group me chale jaayenge.</div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const EMBED=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(Date.UTC(y,m-1,d))};
+const iso=d=>d.toISOString().slice(0,10);
+const fd=s=>{const [y,m,d]=s.split('-');return `${d} ${MON[+m-1]}`};
+const fdy=s=>`${fd(s)} ${s.slice(0,4)}`;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)}
+
+let D=null,S={sid:'d4',p:'d',asof:null,filter:null,ipoOnly:false,sort:['Last hit',-1]};
+const ALLOW={daily:['d','w','m'],cool:['w','m'],week:['w','m']};
+const PNAME={d:'Daily',w:'Weekly',m:'Monthly'};
+
+function winStart(asof,p){
+  if(p==='d')return asof;
+  const d=pd(asof);
+  if(p==='w'){d.setUTCDate(d.getUTCDate()-6);return iso(d)}
+  const y=d.getUTCFullYear(),m=d.getUTCMonth(),day=d.getUTCDate();
+  const last=new Date(Date.UTC(y,m,0)).getUTCDate();          // days in previous month
+  return iso(new Date(Date.UTC(y,m-1,Math.min(day,last))));
+}
+const scr=id=>D.screeners.find(s=>s.id===id);
+function sector(sym){const v=D.sectors[sym]||['','',''];return [v[0]||'Unmapped (IPO?)',v[1]||'Unmapped (IPO?)',!v[0],v[2]||'']}
+function isIpo(listed){if(!listed)return false;const d=pd(S.asof);d.setUTCDate(d.getUTCDate()-(D.ipo_days||365));return listed>=iso(d)&&listed<=S.asof}
+
+function aggregate(sid){
+  const st=winStart(S.asof,S.p),m=new Map();
+  for(const [d,s,sym,pc] of D.hits){
+    if(s!==sid||d<st||d>S.asof)continue;
+    let r=m.get(sym);
+    if(!r){const [ind,sub,un,listed]=sector(sym);r={sym,ind,sub,un,listed,ipo:isIpo(listed),n:0,last:d,best:null};m.set(sym,r)}
+    r.n++;if(d>r.last)r.last=d;
+    if(pc!=null&&(r.best==null||pc>r.best))r.best=pc;
+  }
+  const all=[...m.values()];
+  return S.ipoOnly?all.filter(r=>r.ipo):all;
+}
+function groups(rows,key){
+  const c=new Map();rows.forEach(r=>{const g=c.get(r[key])||[0,0];g[0]++;if(r.ipo)g[1]++;c.set(r[key],g)});
+  return [...c.entries()].sort((a,b)=>b[1][0]-a[1][0]||a[0].localeCompare(b[0]));
+}
+
+function render(){
+  const meta=scr(S.sid);
+  if(!ALLOW[meta.kind].includes(S.p))S.p='w';
+  const st=winStart(S.asof,S.p);
+  $('#win').innerHTML=S.p==='d'?`<b>${fdy(S.asof)}</b>`:`<b>${fd(st)}</b> se <b>${fdy(S.asof)}</b> tak`;
+  document.querySelectorAll('#seg button').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.p===S.p);b.disabled=!ALLOW[meta.kind].includes(b.dataset.p)});
+
+  // screener strip with counts for the current window
+  $('#strip').innerHTML=D.screeners.map(s=>{
+    const ok=ALLOW[s.kind].includes(S.p),n=ok?aggregate(s.id).length:null;
+    const sub=s.kind==='daily'?'cool-off nahi':s.kind==='week'?`Friday, ${s.cooloff} week cool-off`:`cool-off ${s.cooloff} din`;
+    return `<button class="sc" type="button" data-s="${s.id}" aria-pressed="${s.id===S.sid}"><span class="n">${esc(s.short)}</span><span class="c${n?'':' zero'}">${n==null?'-':n}</span><span class="r">${sub}</span></button>`}).join('');
+  document.querySelectorAll('.sc').forEach(b=>b.onclick=()=>{S.sid=b.dataset.s;S.filter=null;if(!ALLOW[scr(S.sid).kind].includes(S.p))S.p='w';render()});
+
+  $('#rule').innerHTML={
+    daily:`<b>${esc(meta.name)}:</b> cool-off nahi. Jis din stock 4% se upar band hua, wahi din dikhega, roz ki har hit aati hai. 5% circuit wale (4.99 se 5.01%) hata diye gaye hain.`,
+    cool:`<b>${esc(meta.name)}:</b> ek baar dikhne ke baad agle ${meta.cooloff} trading din tak wahi stock dobara nahi dikhega. Weekly aur monthly window me har stock sirf ek baar (cool-off ke hisaab se) aata hai.`,
+    week:`<b>${esc(meta.name)}:</b> sirf poore hue hafte (Friday) par check hota hai. Ek baar dikhne ke baad agla ${meta.cooloff} completed week nahi dikhega. Chalta hua hafta count nahi hota.`}[meta.kind];
+
+  const rows=aggregate(S.sid);
+  $('#t1').textContent=rows.length;
+  const nIpo=rows.filter(r=>r.ipo).length;
+  $('#t1s').textContent=(S.p==='d'?'aaj ke din':`${rows.reduce((a,r)=>a+r.n,0)} hits`)+` · ${nIpo} IPO`;
+  $('#ipoT').setAttribute('aria-pressed',S.ipoOnly);
+  const gi=groups(rows,'ind'),gs=groups(rows,'sub');
+  $('#t2').textContent=gi.length;$('#t3').textContent=gs.length;
+  bars('#bi',gi,'ind');bars('#bs',gs,'sub');
+
+  let vis=rows;
+  if(S.filter)vis=vis.filter(r=>r[S.filter.k]===S.filter.v);
+  const q=$('#q').value.trim().toLowerCase();
+  if(q)vis=vis.filter(r=>(r.sym+' '+r.ind+' '+r.sub).toLowerCase().includes(q));
+  $('#filt').hidden=!S.filter;
+  if(S.filter)$('#filt').innerHTML=`${esc(S.filter.v)}<button type="button" id="fx" aria-label="Filter hatayein">×</button>`,$('#fx').onclick=()=>{S.filter=null;render()};
+  table(vis,meta);
+
+  const un=rows.filter(r=>r.un);
+  $('#unw').hidden=!un.length;
+  if(un.length){$('#unc').textContent=`${un.length} stock`;$('#unl').innerHTML=un.map(r=>`<span class="chip">${esc(r.sym)}</span>`).join('')}
+  window.__rows=rows;window.__un=un;window.__gi=gi;window.__gs=gs;
+}
+function bars(sel,g,k){
+  const top=g.slice(0,10),mx=Math.max(1,...top.map(x=>x[1][0]));
+  $(sel).innerHTML=top.length?top.map(([n,[v,ip]])=>`<button type="button" class="bar${n.startsWith('Unmapped')?' un':''}" data-k="${k}" data-v="${esc(n)}" aria-pressed="${!!S.filter&&S.filter.k===k&&S.filter.v===n}" title="${esc(n)}: ${v} stock, ${ip} IPO"><span class="n">${esc(n)}</span><span class="t"><span class="f" style="width:${(v-ip)/mx*100}%"></span><span class="f i" style="width:${ip/mx*100}%"></span></span><span class="v">${v}${ip?` <small>(${ip} IPO)</small>`:''}</span></button>`).join(''):'<div class="empty">Is window me koi stock nahi.</div>';
+  document.querySelectorAll(sel+' .bar').forEach(b=>b.onclick=()=>{const same=S.filter&&S.filter.k===k&&S.filter.v===b.dataset.v;S.filter=same?null:{k,v:b.dataset.v};render()});
+}
+function table(rows,meta){
+  const cols=[['Stock','sym'],['Industry','ind'],['Subgroup','sub'],['Hits','n','r'],['Last hit','last'],['Listed','listed'],['Best gain','best','r']];
+  const [sc,sd]=S.sort,key={'Stock':'sym','Industry':'ind','Subgroup':'sub','Hits':'n','Last hit':'last','Listed':'listed','Best gain':'best'}[sc];
+  rows=[...rows].sort((a,b)=>{const x=a[key]??-1e9,y=b[key]??-1e9;return (typeof x==='number'?x-y:String(x).localeCompare(String(y)))*sd||a.sym.localeCompare(b.sym)});
+  $('#tb').innerHTML='<thead><tr>'+cols.map(c=>`<th class="${c[2]||''}" data-c="${c[0]}"${sc===c[0]?` data-dir="${sd>0?'↑':'↓'}"`:''}>${c[0]}</th>`).join('')+'</tr></thead><tbody>'+
+    (rows.length?rows.map(r=>`<tr><td class="num">${esc(r.sym)}${r.ipo?'<span class="badge">IPO</span>':''}</td><td>${r.un?`<span class="un">${esc(r.ind)}</span>`:esc(r.ind)}</td><td>${r.un?`<span class="un">${esc(r.sub)}</span>`:esc(r.sub)}</td><td class="num r">${r.n}</td><td class="num">${fd(r.last)}</td><td class="num">${r.ipo?fdy(r.listed):''}</td><td class="num r up">${r.best==null?'':'+'+r.best.toFixed(1)+'%'}</td></tr>`).join(''):
+    `<tr><td colspan="7" class="empty">${meta.kind==='week'&&S.p!=='m'?'Is window me koi completed Friday hit nahi. Monthly dekhein.':'Is window me koi stock nahi.'}</td></tr>`)+'</tbody>';
+  document.querySelectorAll('#tb th').forEach(th=>th.onclick=()=>{const c=th.dataset.c;S.sort=[c,S.sort[0]===c?-S.sort[1]:(c==='Stock'||c==='Industry'||c==='Subgroup'?1:-1)];render()});
+}
+
+$('#seg').onclick=e=>{const b=e.target.closest('button');if(!b||b.disabled)return;S.p=b.dataset.p;render()};
+$('#asof').onchange=e=>{S.asof=e.target.value;render()};
+$('#q').oninput=render;
+$('#ipoT').onclick=()=>{S.ipoOnly=!S.ipoOnly;S.filter=null;render()};
+$('#cpu').onclick=async()=>{const t=(window.__un||[]).map(r=>r.sym+',,').join('\n');
+  try{await navigator.clipboard.writeText(t);toast('Lines copy ho gayi')}catch(e){toast('Copy nahi ho payi')}};
+let dl=null;
+$('#xl').onclick=async()=>{
+  const rows=window.__rows||[];if(!rows.length){toast('Export ke liye data nahi hai');return}
+  if(!dl)try{dl=await claude.use('downloads')}catch(e){}
+  if(!dl){toast('Download is view me available nahi hai');return}
+  const wb=XLSX.utils.book_new(),meta=scr(S.sid);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.map(r=>({'Security Id':r.sym,'Industry New Name':r.ind,'ISubgroup Name':r.sub,'IPO (last 1 yr)':r.ipo?'Yes':'','Listing date':r.listed,'Hits':r.n,'Last hit':r.last,'Best gain %':r.best}))),'Stocks');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(window.__gi.map(([k,v])=>({'Industry New Name':k,'Stock Count':v[0],'IPO Count':v[1]}))),'Industry');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(window.__gs.map(([k,v])=>({'ISubgroup Name':k,'Stock Count':v[0],'IPO Count':v[1]}))),'Subgroup');
+  const name=`${meta.short.replace(/[^\w]+/g,'_')}_${PNAME[S.p]}_${S.asof}.xlsx`;
+  try{await dl.save({filename:name,data:XLSX.write(wb,{type:'array',bookType:'xlsx'})});toast('Excel save ho gayi')}
+  catch(e){if(!e||e.code!=='declined')toast('Save nahi ho payi')}
+};
+
+function start(data){
+  D=data;
+  $('#demo').hidden=!D.demo;
+  const ds=D.dates.slice().sort().reverse().slice(0,70);
+  $('#asof').innerHTML=ds.map(d=>`<option value="${d}">${fdy(d)}</option>`).join('');
+  S.asof=ds[0];
+  $('#sub').innerHTML=`NSE EOD data, aakhri din <b class="num">${fdy(D.updated)}</b>${D.demo?'':' &middot; <a href="index.html">SA Market Monitor</a> &middot; <a href="gann.html">Gann Screener</a>'}`;
+  render();
+}
+if(EMBED){start(EMBED)}
+else fetch('screener_data.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(start).catch(()=>{const e=$('#err');e.hidden=false;e.textContent='screener_data.json nahi mili. GitHub Actions me "Daily EOD update" ek baar chalayein.'});
+</script>
+</body>
+</html>
