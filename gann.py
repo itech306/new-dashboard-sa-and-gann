@@ -20,6 +20,7 @@ bada-barabar. Barabar highs me pehla wala pivot hota hai. Pivot tabhi confirm ho
 import datetime as dt
 import json
 import math
+import os
 
 import numpy as np
 import pandas as pd
@@ -31,6 +32,11 @@ CYCLES = (30, 60, 90, 120, 144, 180, 216, 240, 270, 288, 360, 432, 480, 540, 720
 GROUP_SCREENERS = ("w5_20", "w5_13", "wk13")   # top 5 groups inhi screeners ke hits se bante hain
 TOP_N = 5
 LIQ_MIN = 3e7                                  # SMA(close * volume, 20) > 3 crore
+SNAP_DAYS = 30                                 # itne trading din ke snapshots (gann_history/) rakhte hain
+SNAP_DIR = "gann_history"
+GAP_MIN_PCT = 1.0                              # Gap Up list me itne se kam gap wale stocks nahi aate (page ka filter isse upar chalta hai)
+GAP_MIN_TURN_CR = 1.0                          # SMA(close * volume, 50) kam se kam itne crore
+GAP_MIN_PRICE = 10
 ONLY_SCREENER_HITS = False                     # True: top groups ke sirf wahi stocks jinhone screener hit diya
 
 
@@ -111,28 +117,22 @@ def analyse(h, l, dates, strength):
     return out
 
 
-def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
-    hist = hist.sort_values(["date", "symbol"])
-    P = {c: hist.pivot(index="date", columns="symbol", values=c).sort_index()
-         for c in ["high", "low", "close", "prev_close", "volume"]}
-    close, prev = P["close"], P["prev_close"]
+def build_snapshot(P, sec2, hits, asof):
+    """Ek din (asof) ka poora Gann + Gap Up snapshot. P: poori history ke pivot frames."""
+    Ps = {k: v.loc[:asof] for k, v in P.items()}          # us din ke baad ka data kabhi nahi dekhte
+    close, prev = Ps["close"], Ps["prev_close"]
     dates = list(close.index)
-    asof = dates[-1]
 
     # split / bonus adjustment (same method as update.py / screeners.py)
     ratio = (prev / close.shift(1)).fillna(1.0)
     ratio = ratio.where((ratio - 1).abs() > 0.003, 1.0)
     factor = ratio.iloc[::-1].cumprod().iloc[::-1].shift(-1).fillna(1.0)
-    aH, aL = P["high"] * factor, P["low"] * factor
+    aH, aL = Ps["high"] * factor, Ps["low"] * factor
 
-    # liquidity: SMA(close * volume, 20) > 3 crore and close > 20 (latest day, raw prices)
-    cv20 = (close * P["volume"]).rolling(20, min_periods=20).mean().iloc[-1]
+    # liquidity: SMA(close * volume, 20) > 3 crore and close > 20 (that day, raw prices)
+    cv20 = (close * Ps["volume"]).rolling(20, min_periods=20).mean().iloc[-1]
     last_close = close.iloc[-1]
     liquid = (cv20 > LIQ_MIN) & (last_close > MIN_PRICE)
-
-    sectors = load_sectors(sector_csv)
-    sec2 = {k: (v[0], v[1]) for k, v in sectors.items()}
-    hits = payload["hits"]
 
     windows, groups, members, shits = {}, {}, {}, {}
     for p in ("w", "m"):
@@ -146,8 +146,8 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
         if ONLY_SCREENER_HITS:
             members[p] &= {s.upper() for s in syms}
 
-    eligible = sorted(s for s in close.columns
-                      if bool(liquid.get(s, False)) and (s.upper() in members["w"] or s.upper() in members["m"]))
+    # sab liquid stocks aate hain; page ka toggle "Top 5 groups / All stocks" rec["f"] se filter karta hai
+    eligible = sorted(s for s in close.columns if bool(liquid.get(s, False)))
     stocks = []
     for sym in eligible:
         hh, ll = aH[sym].dropna(), aL[sym].dropna()
@@ -171,14 +171,58 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
         if any_hit:
             stocks.append(rec)
 
-    out = {
+    # Gap Up: open vs NSE ki previous close, turnover = SMA(close * volume, 50)
+    op, pc = Ps["open"].iloc[-1], prev.iloc[-1]
+    t50 = (close * Ps["volume"]).rolling(50, min_periods=50).mean().iloc[-1] / 1e7
+    ok = ((op / pc - 1) * 100 >= GAP_MIN_PCT) & (t50 >= GAP_MIN_TURN_CR) & (last_close > GAP_MIN_PRICE)
+    gap = []
+    for sym in ok[ok].index:
+        ind, sub = sec2.get(sym.upper(), ("", ""))
+        gap.append({"s": sym, "i": ind, "g": sub, "pc": round(float(pc[sym]), 2), "o": round(float(op[sym]), 2),
+                    "c": round(float(last_close[sym]), 2), "t": round(float(t50[sym]), 1),
+                    "tg": {p: sym.upper() in members[p] for p in ("w", "m")}})
+    gap.sort(key=lambda r: -(r["o"] / r["pc"]))
+
+    return {
         "updated": asof, "demo": False, "strengths": list(STRENGTHS), "cycles": list(CYCLES),
         "liq_min_cr": LIQ_MIN / 1e7, "min_price": MIN_PRICE, "group_screeners": list(GROUP_SCREENERS),
+        "gap_min_pct": GAP_MIN_PCT, "gap_min_turn_cr": GAP_MIN_TURN_CR,
         "windows": windows, "groups": groups,
-        "universe": {p: int(sum(1 for s in eligible if s.upper() in members[p])) for p in ("w", "m")},
-        "stocks": stocks,
+        "universe": {**{p: int(sum(1 for s in eligible if s.upper() in members[p])) for p in ("w", "m")}, "all": len(eligible)},
+        "stocks": stocks, "gap": gap,
     }
+
+
+def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
+    hist = hist.sort_values(["date", "symbol"])
+    P = {c: hist.pivot(index="date", columns="symbol", values=c).sort_index()
+         for c in ["open", "high", "low", "close", "prev_close", "volume"]}
+    all_dates = list(P["close"].index)
+    sectors = load_sectors(sector_csv)
+    sec2 = {k: (v[0], v[1]) for k, v in sectors.items()}
+    hits = payload["hits"]
+
+    snap_dates = all_dates[-SNAP_DAYS:]
+    snap_dir = os.path.join(os.path.dirname(os.path.abspath(out_path)), SNAP_DIR)
+    os.makedirs(snap_dir, exist_ok=True)
+    latest, built = None, 0
+    for d in snap_dates:
+        path = os.path.join(snap_dir, f"{d}.json")
+        if d != all_dates[-1] and os.path.exists(path):
+            continue                                    # purane din ka snapshot ek baar banta hai
+        out = build_snapshot(P, sec2, hits, d)
+        with open(path, "w") as f:
+            json.dump(out, f, separators=(",", ":"))
+        built += 1
+        if d == all_dates[-1]:
+            latest = out
+    for fn in os.listdir(snap_dir):                      # SNAP_DAYS se purane snapshots hata do
+        if fn.endswith(".json") and fn != "index.json" and fn[:-5] not in set(snap_dates):
+            os.remove(os.path.join(snap_dir, fn))
+    with open(os.path.join(snap_dir, "index.json"), "w") as f:
+        json.dump({"latest": all_dates[-1], "dates": snap_dates}, f, separators=(",", ":"))
     with open(out_path, "w") as f:
-        json.dump(out, f, separators=(",", ":"))
-    print(f"gann_data.json: {len(stocks)} stocks with a hit today, eligible={len(eligible)}")
-    return out
+        json.dump(latest, f, separators=(",", ":"))
+    print(f"gann_data.json: {len(latest['stocks'])} stocks with a hit, {len(latest['gap'])} gap-ups; "
+          f"{built} snapshot(s) built, {len(snap_dates)} kept in {SNAP_DIR}/")
+    return latest
