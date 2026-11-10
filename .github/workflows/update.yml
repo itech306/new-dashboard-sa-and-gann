@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pandas requests
+      - run: pip install pandas requests yfinance
       # history.csv.gz bada hai, repo me commit nahi karte (repo bhari ho jaata hai). Cache me rakhte hain.
       # Cache kho jaye to update.py ~750 din ka data dobara download kar leta hai.
       - name: Restore price history
