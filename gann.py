@@ -194,6 +194,37 @@ def build_snapshot(P, sec2, hits, asof):
     }
 
 
+def build_px(P, snap_dates, snap_dir, extra=()):
+    """gann_history/px.json: split/bonus-adjusted close + high of every stock that appears in a saved snapshot
+    (Gann stocks + Gap Up) for the snapshot days. Browser uses it for the "Max Return" column
+    (signal day ka close -> uske baad ka sabse ooncha high/close, aaj tak).
+
+    Format: {"v":1,"d":[dates oldest first],"s":{"SYM":[[close...],[high...]]}}  (rupees, null = no trade that day)
+    """
+    syms = set(extra)
+    for d in snap_dates:
+        try:
+            with open(os.path.join(snap_dir, f"{d}.json")) as f:
+                snap = json.load(f)
+        except Exception:
+            continue
+        syms.update(r["s"] for r in snap.get("stocks", []))
+        syms.update(r["s"] for r in snap.get("gap", []))
+    close, prev = P["close"], P["prev_close"]
+    ratio = (prev / close.shift(1)).fillna(1.0)
+    ratio = ratio.where((ratio - 1).abs() > 0.003, 1.0)
+    factor = ratio.iloc[::-1].cumprod().iloc[::-1].shift(-1).fillna(1.0)
+    aC, aH = (close * factor).reindex(snap_dates), (P["high"] * factor).reindex(snap_dates)
+    cell = lambda x: None if pd.isna(x) else round(float(x), 2)
+    out = {}
+    for s in sorted(syms):
+        if s in aC.columns:
+            out[s] = [[cell(x) for x in aC[s].values], [cell(x) for x in aH[s].values]]
+    with open(os.path.join(snap_dir, "px.json"), "w") as f:
+        json.dump({"v": 1, "d": list(snap_dates), "s": out}, f, separators=(",", ":"))
+    print(f"px.json: {len(out)} stocks x {len(snap_dates)} days")
+
+
 def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
     hist = hist.sort_values(["date", "symbol"])
     P = {c: hist.pivot(index="date", columns="symbol", values=c).sort_index()
@@ -218,12 +249,16 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
         if d == all_dates[-1]:
             latest = out
     for fn in os.listdir(snap_dir):                      # SNAP_DAYS se purane snapshots hata do
-        if fn.endswith(".json") and fn not in ("index.json", "chart_data.json") and fn[:-5] not in set(snap_dates):
+        if fn.endswith(".json") and fn not in ("index.json", "chart_data.json", "px.json") and fn[:-5] not in set(snap_dates):
             os.remove(os.path.join(snap_dir, fn))
     with open(os.path.join(snap_dir, "index.json"), "w") as f:
         json.dump({"latest": all_dates[-1], "dates": snap_dates}, f, separators=(",", ":"))
     with open(out_path, "w") as f:
         json.dump(latest, f, separators=(",", ":"))
+    try:                                                  # Max Return column ka data; daily job kabhi nahi rukta
+        build_px(P, snap_dates, snap_dir)
+    except Exception as e:
+        print("px.json skipped:", e)
     try:                                                  # hover/expand chart data; never breaks the daily job
         need = {h[2] for h in hits} | {r["s"] for r in latest["stocks"]} | {r["s"] for r in latest["gap"]}
         charts.build(hist, need, os.path.join(snap_dir, "chart_data.json"))

@@ -22,7 +22,7 @@ Roz shaam ko NSE bhavcopy se MR20, U4, D4, W20 nikalta hai, regime/setup/note la
 
 ## Pehle din ye zaroor check karo
 
-- **Chartink se milao.** Gap bharne ke baad 12 Oct se 30 Oct ke MR20/U4/D4/W20 apne Chartink ke numbers se compare karo. Agar thoda fark ho to `update.py` ke upar `TURNOVER_MIN`, `U4_PCT` aur U4/D4 ka volume condition tumhare scan jaisa kar do.
+- **Chartink se milao.** Gap bharne ke baad 12 Oct se 30 Oct ke MR20/U4/D4/W20 apne Chartink ke numbers se compare karo. Agar thoda fark ho to `update.py` ke upar `AVG_TURNOVER_CR`, `MIN_PRICE`, `U4_PCT` aur U4/D4 ka volume condition tumhare scan jaisa kar do.
 - Bhavcopy ka URL/columns NSE ne pehle badle hain. Agar Actions me "unexpected columns" ya "No new trading days" aaye to log dekho aur URL wali `URLS` list update karo.
 - Raw bhavcopy unadjusted hota hai. Script split/bonus NSE ke `PrvsClsgPric` column se adjust karti hai. Ye assumption hai ki NSE ex-date par ye column adjust karta hai; kisi split wale din ek baar manually check kar lena.
 - Regime logic tumhari sheet ke 2661 me se 2637 din se match karta hai. Chop ka rule sheet se calibrate hua hai: pichle 5 MR20 moves me 3+ baar direction badli.
@@ -70,3 +70,36 @@ Pine script "price and time by sourav karhana" ke Module 1 (Price-to-Time) aur M
 
 `index.html` अब Shravya Market Scanz का unified dashboard है। यह `data.json` से Market Monitor live data पढ़ता है और उपलब्ध होने पर `screener_data.json` का इस्तेमाल करता है। `screeners.html` और `gann.html` standalone pages के रूप में भी रखे गए हैं।
 
+
+- `index.html` (aur uski copy `ShravyaMarketScanz.html`) ab `data.json`, `screener_data.json` aur `gann_data.json` teeno real padhti hai. Jo file repo me nahi hoti (workflow ek baar chale bina) uske liye "Demo" sample dikhta hai.
+
+## Stock chart on hover (charts.py)
+
+- Kisi bhi stock symbol par mouse le jao: 126 din ka candle chart aata hai (Swing Master v2 colours/markers). Symbol par click abhi bhi TradingView/Chartink kholta hai.
+- Hover par chart card aata hai. Symbol ke saath wala ⤢ button ek click me seedha full-screen viewer kholta hai (Prev/Next ya ArrowLeft/ArrowRight se list me aage-peeche, Esc / X se band, ⛶ se browser fullscreen).
+- Chart par neela vertical band = us din stock us screener me aaya tha (Gann/Gap Up pages par saare screeners). Halka laal band = 50 SMA downside extension.
+- `charts.py` roz `gann.run()` se `gann_history/chart_data.json` banata hai (sirf screener hits + Gann + Gap Up stocks). File na ho to baaki site pehle jaisi chalti hai aur chart "Chart not available" dikhata hai.
+- Workflow me koi badlav nahi chahiye (`git add -A gann_history` is file ko bhi commit kar deta hai).
+
+
+## Charts (interactive, TradingView jaisa)
+
+Files: `chart.html` (chart), `index.html` / `ShravyaMarketScanz.html` (dashboard: screener / strong groups me stock par hover, pin ya expand dabao to yahi chart khulta hai), `charts.py` (workflow me chart data banata hai).
+
+1. Zip ki files repo me replace karo (`chart.html`, `index.html`, `ShravyaMarketScanz.html`, `charts.py`) aur push karo. `chart.html` `index.html` ke bagal me root me rahe.
+2. Actions tab me "Update" workflow ek baar Run karo. Wo `gann_history/chart_data.json` aur `gann_history/h/*.json` (volume ke saath; ~750 trading days bhavcopy se + usse purani history free Yahoo se, listing tak) banata hai. Roz apne aap update hota hai.
+3. Site kholo, kisi stock par hover karo. Chart me: scroll = zoom, drag = peeche/aage, EMA 10/20/50/100/200, Vol, Flags, A (auto-fit), L (log), Dark/Light.
+
+Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me hain. Site ko GitHub Pages / server se kholo (file:// se fetch nahi chalta).
+
+### Purani (750 din se pehle ki) history
+`charts.py` har stock ke liye Yahoo Finance (free, `yfinance`) se poori purani history leke 750-din wali series ke pehle jod deta hai (price split-adjusted, continuity ke liye scale). Yahoo na chale / rate-limit kare to chart sirf ~750 din ka banta hai, workflow fail nahi hota. Band karna ho to workflow me env `FULL_HISTORY=0` do.
+
+
+## Max Return column (Price-to-Time, 3-6-9, Gap Up)
+
+- Date picker me koi **purani date** (jaise 4 Nov) chuno to in teeno tables me Avg turnover ke bagal me **Max Return** aata hai: us din ke close se uske baad (aaj tak) ka sabse ooncha price kitna gaya.
+- Neeche chhoti line: kis din peak bana aur **now** = aaj ka close us din ke close se kitna upar/neeche.
+- Upar **Max by High** (intraday high, default) / **Max by Close** (sirf closing) toggle hai. Header par click karke sort bhi kar sakte ho.
+- Latest date par column "—" dikhata hai (abhi koi "baad ka din" nahi hai).
+- Data `gann_history/px.json` se aata hai (gann.py roz banata hai, split/bonus adjusted, last 30 trading days). Workflow me koi badlav nahi chahiye (`git add -A gann_history` ise bhi commit karta hai).
