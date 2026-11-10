@@ -14,6 +14,7 @@ File format (version 1)
       bits 8-9 HT (0 none,1 purple,2 red)               bits 10-11 TI (0 none,1 green,2 red)
       bit 12 50 SMA downside extension
 """
+import re
 import json
 import os
 
@@ -100,12 +101,51 @@ def flags_for(o, h, l, c, v, raw_c):
             | (ht << 8) | (tis << 10) | (np.asarray(ext, dtype=np.int64) << 12))
 
 
+def _yahoo(sym):
+    """Free full price history from Yahoo (split-adjusted, not dividend-adjusted). None on any failure."""
+    try:
+        import time
+        import yfinance as yf
+        time.sleep(0.15)
+        d = yf.Ticker(sym + ".NS").history(period="max", interval="1d", auto_adjust=False)
+        if d is None or d.empty:
+            return None
+        d = d.dropna(subset=["Open", "High", "Low", "Close"])
+        return [x.strftime("%Y-%m-%d") for x in d.index], d["Open"].values, d["High"].values, d["Low"].values, d["Close"].values, d["Volume"].fillna(0).values
+    except Exception:
+        return None
+
+
+def _write_full(hdir, sym, g, o, hi, lo, c, v):
+    """gann_history/h/SYMBOL.json = our adjusted bhavcopy series (~750 days) with older Yahoo bars prepended."""
+    R = lambda a_: [round(float(x), 2) for x in a_]
+    dates = [str(d) for d in g["date"]]
+    out = {"t": dates, "o": R(o), "h": R(hi), "l": R(lo), "c": R(c), "v": [int(x) for x in v]}
+    y = _yahoo(sym) if os.environ.get("FULL_HISTORY", "1") == "1" else None
+    if y and y[0] and y[0][0] < dates[0]:
+        yd, yo, yh, yl, yc, yv = y
+        n = sum(1 for d in yd if d < dates[0])
+        r = 1.0
+        if dates[0] in yd:                                  # join: scale old bars so the series is continuous
+            yc0 = float(yc[yd.index(dates[0])])
+            r = out["c"][0] / yc0 if yc0 > 0 else 1.0
+        out = {"t": yd[:n] + out["t"],
+               "o": R(yo[:n] * r) + out["o"], "h": R(yh[:n] * r) + out["h"],
+               "l": R(yl[:n] * r) + out["l"], "c": R(yc[:n] * r) + out["c"],
+               "v": [int(x) for x in yv[:n]] + out["v"]}
+    with open(os.path.join(hdir, re.sub(r"[^A-Za-z0-9_-]", "_", sym) + ".json"), "w") as fh:
+        json.dump(out, fh, separators=(",", ":"))
+
+
 def build(hist: pd.DataFrame, symbols, out_path: str, n_bars: int = N_BARS):
     """hist: date,symbol,open,high,low,close,prev_close,volume. symbols: iterable to include."""
     want = set(symbols)
     h = hist[hist["symbol"].isin(want)].sort_values(["symbol", "date"])
     cal = sorted(hist["date"].unique())[-n_bars:]
     out = {}
+    import re
+    hdir = os.path.join(os.path.dirname(os.path.abspath(out_path)), "h")
+    os.makedirs(hdir, exist_ok=True)
     for sym, g in h.groupby("symbol", sort=True):
         try:
             g = g.drop_duplicates("date").reset_index(drop=True)
@@ -115,20 +155,22 @@ def build(hist: pd.DataFrame, symbols, out_path: str, n_bars: int = N_BARS):
             f = ratio.iloc[::-1].cumprod().iloc[::-1].shift(-1).fillna(1.0).values
             o, hi, lo, c = (g[k].astype(float).values * f for k in ("open", "high", "low", "close"))
             v = g["volume"].astype(float).fillna(0).values
+            _write_full(hdir, sym, g, o, hi, lo, c, v)
             fl = flags_for(o, hi, lo, c, v, g["close"].astype(float).values)
-            df = pd.DataFrame({"o": o, "h": hi, "l": lo, "c": c, "f": fl}, index=g["date"])
+            df = pd.DataFrame({"o": o, "h": hi, "l": lo, "c": c, "f": fl, "v": v}, index=g["date"])
             df = df[df.index.isin(cal)]
             if df.empty:
                 continue
             df = df.reindex([d for d in cal if d >= df.index[0]])
             df[["o", "h", "l", "c"]] = df[["o", "h", "l", "c"]].ffill()
             df["f"] = df["f"].fillna(0)
+            df["v"] = df["v"].fillna(0)
             P = lambda a: np.round(a * 100).astype(np.int64)
             cc = P(df["c"].values)
             oo, hh, ll = P(df["o"].values), P(df["h"].values), P(df["l"].values)
             dc = np.diff(cc, prepend=cc[0])
             out[sym] = [int(cc[0]), dc.tolist(), (oo - cc).tolist(), (hh - cc).tolist(), (cc - ll).tolist(),
-                        df["f"].astype(np.int64).tolist()]
+                        df["f"].astype(np.int64).tolist(), df["v"].astype(np.int64).tolist()]
         except Exception:                                              # never break the daily job for one stock
             continue
     payload = {"v": 1, "n": n_bars, "d": cal, "s": out}

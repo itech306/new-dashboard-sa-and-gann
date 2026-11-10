@@ -176,7 +176,7 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
 .dpbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 14px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-size:13px;color:var(--mut)}.dpbar input[type=date]{font:inherit;font-size:13px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);color:var(--fg)}.dpbar .more{padding:6px 12px}
 .chi svg{width:10px;height:10px;display:block;margin:auto}.chi{display:inline-grid;place-items:center;font:700 10px/1 var(--mono);width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--mut);cursor:pointer;margin-left:5px;padding:0;vertical-align:middle;transition:.15s}.chi:hover,.chi[aria-expanded=true]{color:var(--acc);border-color:var(--acc)}
 #hc{position:fixed;left:0;top:0;z-index:50;width:min(640px,calc(100vw - 16px));background:#fff;color:#222;border:1px solid rgba(0,0,0,.18);border-radius:8px;box-shadow:0 18px 50px -12px rgba(0,0,0,.45);overflow:hidden;line-height:0}
-#hc.pin{pointer-events:auto}#hc svg{display:block;width:100%;height:auto}
+#hc.pin{pointer-events:auto}#hc svg{display:block;width:100%;height:auto}#hc iframe{display:block;width:100%;height:min(430px,62vh);border:0}
 #hc .na,#xo .na{display:grid;place-items:center;aspect-ratio:640/300;font:500 14px var(--ui);color:#555;line-height:1.4}
 #hc .nb0{display:grid;position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:1px solid rgba(0,0,0,.25);background:rgba(255,255,255,.92);color:#222;cursor:pointer;padding:0;place-items:center}
 #hc.pin .nb0{display:grid}#hc .nb0:hover{background:#e8f6f3;border-color:#0ea58f}#hc .nb0 svg{width:14px;height:14px}
@@ -187,8 +187,8 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
 #xo .xs{font:700 20px var(--mono);color:#fff;text-decoration:none;border-bottom:1px dashed rgba(255,255,255,.5)}#xo .xs:hover{color:#5eead4}
 #xo .xp{font:500 14px var(--mono);color:rgba(255,255,255,.75)}
 #xo .xr{display:grid;grid-template-columns:auto auto auto;grid-template-areas:"p c n";align-items:center;justify-content:center;gap:12px;width:100%}#xo .xprev{grid-area:p}#xo .xnext{grid-area:n}#xo .xc{grid-area:c}
-#xo .xc{width:min(calc(100vw - 140px),calc((100vh - 100px) * 640 / 300));background:#fff;border-radius:8px;overflow:hidden;line-height:0;box-shadow:0 30px 80px -20px #000}
-#xo .xc svg{display:block;width:100%;height:auto}
+#xo .xc{width:min(calc(100vw - 140px),1400px);background:#fff;border-radius:8px;overflow:hidden;line-height:0;box-shadow:0 30px 80px -20px #000}
+#xo .xc svg{display:block;width:100%;height:auto}.xc iframe{display:block;width:100%;height:min(calc(100vh - 110px),720px);border:0}
 #xo .xb{width:48px;height:48px;flex:none;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;font:400 26px/1 var(--ui);cursor:pointer;display:grid;place-items:center;padding:0}
 #xo .xb:hover:not(:disabled){background:rgba(255,255,255,.28)}#xo .xb:disabled{opacity:.3;cursor:default}
 #xo .xx{width:40px;height:40px;font-size:20px}
@@ -196,7 +196,7 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
 .xlk{overflow:hidden}
 @media (max-width:700px){#xo .xr{grid-template-columns:1fr 1fr;grid-template-areas:"c c" "p n";gap:14px}#xo .xc{width:96vw}#xo .xprev{justify-self:end;margin-right:10px}#xo .xnext{justify-self:start;margin-left:10px}}
 @media (prefers-reduced-motion:reduce){#xo{animation:none}}
-</style></head><body>
+@media (hover:none){.chi{width:auto;height:24px;padding:0 9px;border-radius:12px;font:600 11px/1 var(--ui)}.chi svg{width:12px;height:12px}.chi::after{content:"Chart";margin-left:5px}}</style></head><body>
 <div class="aurora"></div>
 <div class="app">
 <header class="nav" id="nav">
@@ -606,7 +606,8 @@ function chartSVG(sym){var sc=xScope(),key=sym+"|"+sc;
 /* hover / pinned card */
 var HC=document.createElement("div");HC.id="hc";HC.hidden=true;document.body.appendChild(HC);
 var XB=document.createElement("button");XB.type="button";XB.className="nb0";XB.innerHTML='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5l-4.5 4.5M2.5 13.5L7 9"/></svg>';
-function cardBody(sym){HC.textContent="";var s=XC.st===2?chartSVG(sym):null;if(s){HC.innerHTML=s}else{var d=document.createElement("div");d.className="na";d.textContent="Chart not available";HC.appendChild(d)}XB.setAttribute("aria-label","Expand chart for "+sym);HC.appendChild(XB)}
+function xFrame(sym){var sc=xScope(),hs=Object.keys(hitSet(sym,sc)).join(","),t=document.documentElement.dataset.theme||(window.matchMedia&&matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");var q="embed=1&t="+t+"&s="+encodeURIComponent(sym)+(hs?"&hits="+hs:"");if(window.CHART_HTML){return'<iframe title="Chart" srcdoc="'+(("<script>window.__P="+JSON.stringify(q)+"<\/script>"+window.CHART_HTML).replace(/&/g,"&amp;").replace(/"/g,"&quot;"))+'"></iframe>'}return'<iframe title="Chart" src="chart.html?'+q+'"></iframe>'}
+function cardBody(sym){HC.innerHTML=xFrame(sym);XB.setAttribute("aria-label","Expand chart for "+sym);HC.appendChild(XB)}
 function place(anchor){var r=anchor.getBoundingClientRect(),vw=document.documentElement.clientWidth,vh=window.innerHeight,W=Math.min(640,vw-16);HC.style.width=W+"px";var h=HC.offsetHeight||W*300/640,L=r.right+4;if(L+W>vw-8)L=r.left-4-W;L=Math.max(8,Math.min(L,vw-W-8));var T=r.top+r.height/2-h/2;
  if(L<r.right&&L+W>r.left){if(r.bottom+6+h<=vh-8)T=r.bottom+6;else if(r.top-6-h>=8)T=r.top-6-h}
  T=Math.max(8,Math.min(T,vh-h-8));HC.style.left=L+"px";HC.style.top=T+"px"}
@@ -637,7 +638,7 @@ function openX(sym,opener){closeX(true);var L=LIST.slice(),i=L.indexOf(sym);if(i
  el.addEventListener("click",function(e){if(e.target.closest(".xf")){var fe=document.fullscreenElement;try{if(fe)document.exitFullscreen();else if(el.requestFullscreen)el.requestFullscreen().catch(function(){})}catch(x){}return}if(e.target.closest(".xcl")){closeX();return}if(e.target.closest(".xprev")){stepX(-1);return}if(e.target.closest(".xnext")){stepX(1);return}if(!e.target.closest("button,a,.xc"))closeX()});
  renderX();var cb=el.querySelector(".xcl");cb.focus()}
 function renderX(){var o=XO,sym=o.L[o.i],el=o.el,a=el.querySelector(".xs");a.textContent=sym;a.href=CS.chart==="ci"?"https://chartink.com/stocks/"+encodeURIComponent(sym)+".html":"https://in.tradingview.com/chart/?symbol=NSE:"+encodeURIComponent(sym);
- el.querySelector(".xp").textContent=(o.i+1)+" / "+o.L.length;var box=el.querySelector(".xc");loadCD().then(function(){if(!XO||XO!==o||o.L[o.i]!==sym)return;var s=XC.st===2?chartSVG(sym):null;if(s)box.innerHTML=s;else{box.innerHTML='<div class="na">Chart not available</div>'}});
+ el.querySelector(".xp").textContent=(o.i+1)+" / "+o.L.length;var box=el.querySelector(".xc");box.innerHTML=xFrame(sym);
  Array.prototype.forEach.call(el.querySelectorAll(".xprev"),function(b){b.disabled=o.i<=0});Array.prototype.forEach.call(el.querySelectorAll(".xnext"),function(b){b.disabled=o.i>=o.L.length-1});
  var ae=document.activeElement;if(ae&&ae.disabled){var alt=el.querySelector(ae.classList.contains("xprev")?".xnext:not(:disabled)":".xprev:not(:disabled)")||el.querySelector(".xcl");alt.focus()}}
 function stepX(d){if(!XO)return;var j=XO.i+d;if(j<0||j>=XO.L.length)return;XO.i=j;renderX()}
