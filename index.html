@@ -196,15 +196,30 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
 .xlk{overflow:hidden}
 @media (max-width:700px){#xo .xr{grid-template-columns:1fr 1fr;grid-template-areas:"c c" "p n";gap:14px}#xo .xc{width:96vw}#xo .xprev{justify-self:end;margin-right:10px}#xo .xnext{justify-self:start;margin-left:10px}}
 @media (prefers-reduced-motion:reduce){#xo{animation:none}}
-@media (hover:none){.chi{width:auto;height:24px;padding:0 9px;border-radius:12px;font:600 11px/1 var(--ui)}.chi svg{width:12px;height:12px}.chi::after{content:"Chart";margin-left:5px}}</style></head><body>
+@media (hover:none){.chi{width:auto;height:24px;padding:0 9px;border-radius:12px;font:600 11px/1 var(--ui)}.chi svg{width:12px;height:12px}.chi::after{content:"Chart";margin-left:5px}}
+/* ===== Stock search ===== */
+.sq{position:relative;display:flex;align-items:center}
+.sq input{width:170px;font:500 13px var(--ui,system-ui);color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px 7px 32px;outline:0;text-transform:uppercase;transition:.2s}
+.sq input::placeholder{text-transform:none;color:var(--mut)}
+.sq input:focus{border-color:var(--acc);width:220px;box-shadow:0 0 0 3px var(--glow)}
+.sq .si{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:.7}
+#sqr{position:absolute;top:calc(100% + 6px);right:0;min-width:240px;max-height:320px;overflow:auto;margin:0;padding:6px;list-style:none;background:var(--bg2);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.28);z-index:50}
+#sqr li{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:9px;cursor:pointer;font:600 13px var(--mono,monospace);color:var(--fg)}
+#sqr li small{font:500 11px var(--ui,system-ui);color:var(--mut);align-self:center}
+#sqr li.on,#sqr li:hover{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04120f}#sqr li.on small,#sqr li:hover small{color:#04120f}
+#sqr li.em{cursor:default;color:var(--mut);font-weight:500}
+#sqb{display:none}
+@media (max-width:860px){#sqb{display:inline-flex}.sq{display:none;position:absolute;left:0;right:0;top:100%;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--line)}body.sqo .sq{display:flex}.sq input,.sq input:focus{width:100%}.sq .si{left:28px}#sqr{left:16px;right:16px;min-width:0}}
+</style></head><body>
 <div class="aurora"></div>
 <div class="app">
 <header class="nav" id="nav">
  <div class="nb2"><a class="logo" href="#home" aria-label="Shravya Market Scanz home">SA</a><div class="bt"><a class="bn" href="#home"><span class="b1">Shravya</span> <span class="b2">Market Scanz</span></a><span class="upd" id="upd" title="Date of the latest end-of-day data"><span class="live"></span>Last updated (EOD): <b>…</b></span></div></div>
  <button class="ib" id="menu" aria-label="Menu" aria-expanded="false">☰</button>
  <nav class="links" id="links" aria-label="Main"></nav>
+ <div class="sq" id="sq" role="search"><span class="si">🔍</span><input id="sqi" type="text" placeholder="Search stock ( / )" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Search stock and open chart" role="combobox" aria-expanded="false" aria-controls="sqr"><ul id="sqr" role="listbox" hidden></ul></div>
  <div class="nr">
- <button class="ib w" id="gpb">📋<span class="lbl"> Groups</span></button><button class="ib w" id="bridge" title="Copy tickers from all scanners at once">🌉<span class="lbl"> Bridge</span></button><button class="ib" id="theme" aria-label="Toggle theme">◐</button></div>
+ <button class="ib" id="sqb" aria-label="Search stock">🔍</button> <button class="ib w" id="gpb">📋<span class="lbl"> Groups</span></button><button class="ib w" id="bridge" title="Copy tickers from all scanners at once">🌉<span class="lbl"> Bridge</span></button><button class="ib" id="theme" aria-label="Toggle theme">◐</button></div>
 </header>
 <div id="toast" hidden></div>
 <div id="gp" hidden><div class="ph"><h2>Saved Groups</h2><button class="ib" id="gpx" aria-label="Close">✕</button></div>
@@ -675,6 +690,31 @@ document.addEventListener("keydown",function(e){if(!XO)return;if(e.key==="Escape
  if(e.key==="ArrowLeft"){e.preventDefault();stepX(-1)}else if(e.key==="ArrowRight"){e.preventDefault();stepX(1)}
  else if(e.key==="Tab"){var f=xFocusables();if(!f.length)return;var a=document.activeElement,i=f.indexOf(a);if(!XO.el.contains(a)){e.preventDefault();f[0].focus()}else if(e.shiftKey&&i<=0){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&i===f.length-1){e.preventDefault();f[0].focus()}}},true);
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&XH.pin&&!XO){var b=XH.pin.btn;unpin();if(b&&b.isConnected)b.focus()}});
+
+/* stock search -> full chart (chart.html) */
+(function(){var inp=$("sqi"),box=$("sqr"),sel=-1,cur=[];
+ function syms(){return XC.s?Object.keys(XC.s):[]}
+ function hide(){box.hidden=true;inp.setAttribute("aria-expanded","false");sel=-1}
+ function openChart(sym){sym=(sym||"").trim().toUpperCase();if(!sym)return;var t=document.documentElement.dataset.theme||(window.matchMedia&&matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+  window.open("chart.html?s="+encodeURIComponent(sym)+"&t="+t,"_blank","noopener");hide();inp.value="";document.body.classList.remove("sqo")}
+ function paint(){var q=inp.value.trim().toUpperCase();if(!q){hide();return}
+  var all=syms(),a=[],b=[];for(var i=0;i<all.length;i++){var k=all[i];if(k.indexOf(q)===0)a.push(k);else if(k.indexOf(q)>0)b.push(k)}
+  cur=a.sort().concat(b.sort()).slice(0,8);sel=cur.length?0:-1;
+  box.innerHTML=cur.length?cur.map(function(k,i){return'<li role="option" data-s="'+k+'"'+(i===0?' class="on"':'')+'>'+k+'<small>open chart ↗</small></li>'}).join(""):'<li class="em">'+(XC.st===3?"Stock list load nahi hui. Symbol likh ke Enter dabao.":XC.st===2?"Koi stock nahi mila":"Loading…")+(q&&XC.st!==2?'':'')+'</li>';
+  box.hidden=false;inp.setAttribute("aria-expanded","true")}
+ function mark(){var l=box.querySelectorAll("li[data-s]");for(var i=0;i<l.length;i++)l[i].classList.toggle("on",i===sel);if(l[sel])l[sel].scrollIntoView({block:"nearest"})}
+ inp.addEventListener("focus",function(){loadCD().then(function(){if(inp.value)paint()})});
+ inp.addEventListener("input",function(){loadCD().then(paint);paint()});
+ inp.addEventListener("keydown",function(e){if(e.key==="ArrowDown"&&cur.length){e.preventDefault();sel=(sel+1)%cur.length;mark()}
+  else if(e.key==="ArrowUp"&&cur.length){e.preventDefault();sel=(sel-1+cur.length)%cur.length;mark()}
+  else if(e.key==="Enter"){e.preventDefault();openChart(cur[sel]||inp.value)}
+  else if(e.key==="Escape"){hide();inp.blur()}});
+ box.addEventListener("mousedown",function(e){var li=e.target.closest("li[data-s]");if(li){e.preventDefault();openChart(li.dataset.s)}});
+ inp.addEventListener("blur",function(){setTimeout(hide,120)});
+ document.addEventListener("keydown",function(e){if(e.key==="/"&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)&&!XO){e.preventDefault();document.body.classList.add("sqo");inp.focus()}});
+ $("sqb").addEventListener("click",function(){document.body.classList.toggle("sqo");if(document.body.classList.contains("sqo"))inp.focus()});
+ loadCD();
+})();
 window.addEventListener("hashchange",xRe);
 window.addEventListener("hashchange",route);
 D=sample();boot();
