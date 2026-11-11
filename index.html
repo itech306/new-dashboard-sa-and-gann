@@ -271,8 +271,9 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
   <div class="view" id="v-scr" hidden>
     <div class="vh"><div><h1 id="sc-t"></h1><p id="sc-d"></p></div><div class="tools"><div class="seg" id="sc-per"></div><div class="seg" id="sc-ipo"></div></div></div>
     <div class="gm"><section class="panel" id="gm-i"></section><section class="panel" id="gm-s"></section></div>
-    <section class="panel"><div class="ph"><h2 id="sc-h"></h2><div class="tools"><input type="search" id="sc-q" placeholder="Search stock or sector"><button class="more" data-act="copy">📋 Copy all</button><button class="more" data-act="save">💾 Save group</button></div></div>
-    <div class="tbl"><table><thead id="sc-head"><tr><th data-k="s" title="Sort A–Z / Z–A">Stock<span class="ar"></span></th><th data-k="i" title="Sort A–Z / Z–A">Industry<span class="ar"></span></th><th data-k="g" title="Sort A–Z / Z–A">Subgroup<span class="ar"></span></th><th data-k="d" title="Sort earliest / latest first">Date<span class="ar"></span></th><th class="r" data-k="p" title="Sort highest / lowest first">Move<span class="ar"></span></th></tr></thead><tbody id="sc-rows"></tbody></table></div>
+    <section class="panel"><div class="gpf" id="sc-flt"><label>Close &gt; ₹<input id="sc-c" type="number" step="1" min="0" placeholder="any"></label><label>Avg turnover (50-day) &gt;<input id="sc-tn" type="number" step="0.5" min="0" placeholder="any">cr</label><button class="more" id="sc-fr" type="button">Reset</button><span class="sub" id="sc-fn"></span></div>
+    <div class="ph"><h2 id="sc-h"></h2><div class="tools"><input type="search" id="sc-q" placeholder="Search stock or sector"><button class="more" data-act="copy">📋 Copy all</button><button class="more" data-act="save">💾 Save group</button></div></div>
+    <div class="tbl"><table><thead id="sc-head"><tr><th data-k="s" title="Sort A–Z / Z–A">Stock<span class="ar"></span></th><th data-k="i" title="Sort A–Z / Z–A">Industry<span class="ar"></span></th><th data-k="g" title="Sort A–Z / Z–A">Subgroup<span class="ar"></span></th><th data-k="d" title="Sort earliest / latest first">Date<span class="ar"></span></th><th class="r" data-k="p" title="Sort highest / lowest first">Move<span class="ar"></span></th><th class="r" data-k="c" title="Close on the hit day">Close<span class="ar"></span></th><th class="r" data-k="t" title="50-day average turnover on the hit day">Avg turnover<span class="ar"></span></th></tr></thead><tbody id="sc-rows"></tbody></table></div>
     <button class="more" id="sc-more">Show more</button></section>
     <div class="demo" id="sc-demo"></div>
   </div>
@@ -396,7 +397,7 @@ function sample(){
  var cfg={d4:[28,4,19],w5_20:[4,20,38],w5_13:[9,13,19.9],m14:[2,50,95],m2:[1.5,50,140],wk13:[14,13,25],wk20:[5,20,40]};
  SC.forEach(function(s){var c=cfg[s.id];dates.forEach(function(day){
   var wk=new Date(day+"T00:00:00Z").getUTCDay()===5;if((s.id==="wk13"||s.id==="wk20")&&!wk)return;
-  var n=Math.round(c[0]*(.6+R()*.8));for(var k=0;k<n;k++)hits.push([day,s.id,pick(),Math.round((c[1]+Math.pow(R(),2)*(c[2]-c[1]))*10)/10])})});
+  var n=Math.round(c[0]*(.6+R()*.8));for(var k=0;k<n;k++)hits.push([day,s.id,pick(),Math.round((c[1]+Math.pow(R(),2)*(c[2]-c[1]))*10)/10,Math.round(20+Math.pow(R(),3)*2400),Math.round((1+Math.pow(R(),3)*120)*10)/10])})});
  return{updated:asof,hits:hits,sectors:sec,demo:true}}
 function winStart(p){var a=ASOF||D.updated;if(p==="d")return a;if(p==="w")return addDays(a,-6);var d=new Date(a+"T00:00:00Z");d.setUTCMonth(d.getUTCMonth()-1);d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)}
 function inWin(sid,p){var st=winStart(p),m={};D.hits.forEach(function(h){if(h[1]!==sid||h[0]<st||h[0]>(ASOF||D.updated))return;if(!m[h[2]]||h[0]>m[h[2]][0])m[h[2]]=h});return Object.keys(m).map(function(k){return m[k]})}
@@ -426,16 +427,21 @@ function scr(sid){
  segBtns($("sc-per"),opts,per,function(v){per=v;ind="";sg="";shown=40;scr(sid)});
  segBtns($("sc-ipo"),[["0","All stocks"],["1","IPO only (last 1 year)"]],ipoO?"1":"0",function(v){ipoO=v==="1";ind="";sg="";shown=40;scr(sid)});
  var base=inWin(sid,per);if(ipoO)base=base.filter(function(h){return isIpo(h[2])});
+ var cm=parseFloat($("sc-c").value),tm=parseFloat($("sc-tn").value),has=base.some(function(h){return h[4]!=null}),n0=base.length;
+ $("sc-flt").hidden=!has;
+ if(has&&(!isNaN(cm)||!isNaN(tm)))base=base.filter(function(h){return(isNaN(cm)||(h[4]!=null&&h[4]>cm))&&(isNaN(tm)||(h[5]!=null&&h[5]>tm))});
+ $("sc-fn").textContent=(!isNaN(cm)||!isNaN(tm))?"Filter on: "+base.length+" of "+n0+" stocks (group movers use the same filter)":"";
  gm($("gm-i"),"Group movers: Industry",0,base,ind,function(v){ind=v;shown=40;scr(sid)});
  gm($("gm-s"),"Group movers: Subgroup",1,base,sg,function(v){sg=v;shown=40;scr(sid)});
  var ql=q.toLowerCase(),f=base.filter(function(h){var x=D.sectors[h[2]]||["","",""];return(!ind||gname(x,0)===ind)&&(!sg||gname(x,1)===sg)&&(!ql||(h[2]+" "+x[0]+" "+x[1]).toLowerCase().indexOf(ql)>=0)});
- var K={s:function(h){return h[2]},i:function(h){return gname(D.sectors[h[2]],0)},g:function(h){return gname(D.sectors[h[2]],1)},d:function(h){return h[0]},p:function(h){return h[3]}};
+ var K={s:function(h){return h[2]},i:function(h){return gname(D.sectors[h[2]],0)},g:function(h){return gname(D.sectors[h[2]],1)},d:function(h){return h[0]},p:function(h){return h[3]},c:function(h){return h[4]==null?-1:h[4]},t:function(h){return h[5]==null?-1:h[5]}};
  f.sort(function(a,b){var x=K[sk](a),y=K[sk](b),c=typeof x==="number"?x-y:String(x).localeCompare(String(y));return c*sd||b[3]-a[3]||(a[2]<b[2]?-1:1)});
  Array.prototype.forEach.call(document.querySelectorAll("#sc-head th"),function(th){var on=th.dataset.k===sk;th.querySelector(".ar").textContent=on?(sd>0?" ▲":" ▼"):"";th.setAttribute("aria-sort",on?(sd>0?"ascending":"descending"):"none")});
  $("sc-h").textContent=f.length+" stocks"+(ind?" · "+ind:"")+(sg?" · "+sg:"");xRe();LIST=f.map(function(h){return h[2]});LN=s.n;var tb=$("sc-rows");tb.textContent="";
  f.slice(0,shown).forEach(function(h){var x=D.sectors[h[2]]||["","",""],tr=document.createElement("tr"),c=document.createElement("td");c.appendChild(tv(h[2]));
   if(isIpo(h[2])){var b=document.createElement("span");b.className="badge ipo";b.textContent="IPO";c.appendChild(b)}tr.appendChild(c);
-  tr.appendChild(td(gname(x,0)));tr.appendChild(td(gname(x,1),"sub"));tr.appendChild(td(fd(h[0]),"num"));tr.appendChild(td("+"+h[3].toFixed(1)+"%","r num pos"));tb.appendChild(tr)});
+  tr.appendChild(td(gname(x,0)));tr.appendChild(td(gname(x,1),"sub"));tr.appendChild(td(fd(h[0]),"num"));tr.appendChild(td("+"+h[3].toFixed(1)+"%","r num pos"));
+  tr.appendChild(td(h[4]==null?"—":"₹"+h[4].toLocaleString("en-IN"),"r num"));tr.appendChild(td(h[5]==null?"—":h[5].toFixed(1)+" cr","r num"));tb.appendChild(tr)});
  $("sc-more").hidden=f.length<=shown;$("sc-demo").hidden=!D.demo;$("sc-demo").textContent="Demo: these stocks are sample data. Your real screener_data.json will be used automatically once it is available."}
 /* Gann sample */
 var G=null,GD=null,GR=false,gWin="w",gCal="b",gTop=true;
@@ -543,7 +549,9 @@ function route(){var id=location.hash.slice(1)||"home";cur=id;document.body.clas
  if(isG)gann(id==="gann-pt"?"pt":"369");if(id==="gann-gap")gapup();window.scrollTo(0,0)}
 function boot(){LATEST=D.updated;if(!ASOF||ASOF>LATEST)ASOF=LATEST;build();route()}
 $("sc-q").addEventListener("input",function(e){q=e.target.value;shown=40;scr(cur.replace("-","_"))});
-$("sc-head").addEventListener("click",function(e){var th=e.target.closest("th");if(!th)return;var k=th.dataset.k;if(k===sk)sd=-sd;else{sk=k;sd=k==="p"?-1:1}shown=40;scr(cur.replace("-","_"))});
+$("sc-head").addEventListener("click",function(e){var th=e.target.closest("th");if(!th)return;var k=th.dataset.k;if(k===sk)sd=-sd;else{sk=k;sd=(k==="p"||k==="c"||k==="t")?-1:1}shown=40;scr(cur.replace("-","_"))});
+["sc-c","sc-tn"].forEach(function(i){$(i).addEventListener("input",function(){shown=40;ind="";sg="";scr(cur.replace("-","_"))})});
+$("sc-fr").onclick=function(){$("sc-c").value="";$("sc-tn").value="";shown=40;scr(cur.replace("-","_"))};
 $("sc-more").onclick=function(){shown+=50;scr(cur.replace("-","_"))};
 $("g-q").addEventListener("input",function(){gann(gMode)});
 Array.prototype.forEach.call(document.querySelectorAll("#v-gann th[data-k]"),function(h){h.onclick=function(){if(gMk==="mx")gMd=-gMd;else{gMk="mx";gMd=-1}gann(gMode)}});

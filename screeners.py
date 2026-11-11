@@ -152,11 +152,13 @@ def compute_hits(hist: pd.DataFrame):
         shown.index = idx
         p.index = idx
         res[sid] = (shown, p)
-    return res, dates
+    # extra columns for the page filters: raw close and 50-day avg turnover (crore), same basis as Gap Up
+    extra = {"close": close, "t50cr": turn.rolling(50, min_periods=20).mean() / 1e7}
+    return res, dates, extra
 
 
 def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = None):
-    res, dates = compute_hits(hist)
+    res, dates, extra = compute_hits(hist)
     sectors = load_sectors(sector_csv)
     listing = load_listing(listing_csv)
     first_seen = hist.groupby("symbol")["date"].min()
@@ -171,7 +173,10 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
         for i, j in zip(r, c):
             day, sym = sub.index[i], sub.columns[j]
             v = pct.loc[day, sym]
-            hits.append([day, sid, sym, None if pd.isna(v) else round(float(v), 1)])
+            c, t = extra["close"].at[day, sym], extra["t50cr"].at[day, sym]
+            # [date, screener, symbol, move %, close on that day, 50d avg turnover in cr]
+            hits.append([day, sid, sym, None if pd.isna(v) else round(float(v), 1),
+                         None if pd.isna(c) else round(float(c), 2), None if pd.isna(t) else round(float(t), 1)])
             used.add(sym)
     hits.sort(key=lambda x: (x[0], x[1], x[2]))
     sec = {}
