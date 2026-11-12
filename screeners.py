@@ -233,6 +233,16 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
         if not ld and s in first_seen.index and first_seen[s] > early:
             ld = first_seen[s]
         sec[s] = [ind, sub, ld]
+    # IPO (last 1 year) toggle Gann / Gap Up / BB pages par bhi chalta hai, wahan ke stocks screener hit me
+    # nahi hote, isliye har symbol ki listing date alag se (sirf recent listings, file chhoti rehti hai)
+    ipo_from = (dt.date.fromisoformat(latest) - dt.timedelta(days=IPO_DAYS + KEEP_DAYS + 30)).isoformat()
+    lst = {}
+    for s in sorted(hist_syms):
+        ld = (list(sectors.get(s.upper(), ["", "", ""])) + [""])[2] or listing.get(s.upper(), "")
+        if not ld and s in first_seen.index and first_seen[s] > early:
+            ld = first_seen[s]
+        if ld and ld >= ipo_from:
+            lst[s] = ld
     unmapped = sorted(s for s, v in sec.items() if not v[0])
     payload = {
         "updated": latest,
@@ -244,6 +254,7 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
         # F&O + 2%/5% circuit: saare listed symbols (screener, Gann aur Gap Up teeno pages ke liye)
         "fo": sorted(s for s in hist_syms if s.upper() in fo_set),
         "band": {s: band_map[s.upper()] for s in sorted(hist_syms) if s.upper() in band_map},
+        "listing": lst,
         "unmapped": unmapped,
         "band_changes": load_band_changes(band_log_csv, (dt.date.fromisoformat(latest) - dt.timedelta(days=200)).isoformat()),  # [date, symbol, old %, new %]; 0 = no band
         "hits": hits,
