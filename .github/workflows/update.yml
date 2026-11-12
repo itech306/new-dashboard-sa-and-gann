@@ -45,6 +45,7 @@ jobs:
           git add gann_data.json || true
           git add -A gann_history || true
           git add listing_dates.csv || true
+          git add fo_list.csv price_band.csv price_band_all.csv band_changes.csv || true
           git diff --cached --quiet || git commit -m "EOD data update $(date -u +%F)"
           git pull --rebase origin ${GITHUB_REF_NAME} || true
           git push
