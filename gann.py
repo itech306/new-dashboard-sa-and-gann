@@ -38,6 +38,10 @@ SNAP_DIR = "gann_history"
 GAP_MIN_PCT = 1.0                              # Gap Up list me itne se kam gap wale stocks nahi aate (page ka filter isse upar chalta hai)
 GAP_MIN_TURN_CR = 1.0                          # SMA(close * volume, 50) kam se kam itne crore
 GAP_MIN_PRICE = 10
+BB_LOOKBACK = 5                                # BB: aaj ka Low pichle 5 din (aaj samet) ka sabse neecha ho  (Daily Low = Daily Min(5, Daily Low))
+BB_CLOSE_FRAC = 0.50                           # BB: Close >= Low + (High - Low) * 0.50
+BB_MIN_TURN_CR = 1.0                           # SMA(close * volume, 50) kam se kam itne crore (page ka filter isse upar chalta hai)
+BB_MIN_PRICE = 10
 ONLY_SCREENER_HITS = False                     # True: top groups ke sirf wahi stocks jinhone screener hit diya
 
 
@@ -119,7 +123,7 @@ def analyse(h, l, dates, strength):
 
 
 def build_snapshot(P, sec2, hits, asof):
-    """Ek din (asof) ka poora Gann + Gap Up snapshot. P: poori history ke pivot frames."""
+    """Ek din (asof) ka poora Gann + Gap Up + BB snapshot. P: poori history ke pivot frames."""
     Ps = {k: v.loc[:asof] for k, v in P.items()}          # us din ke baad ka data kabhi nahi dekhte
     close, prev = Ps["close"], Ps["prev_close"]
     dates = list(close.index)
@@ -128,11 +132,13 @@ def build_snapshot(P, sec2, hits, asof):
     ratio = (prev / close.shift(1)).fillna(1.0)
     ratio = ratio.where((ratio - 1).abs() > 0.003, 1.0)
     factor = ratio.iloc[::-1].cumprod().iloc[::-1].shift(-1).fillna(1.0)
-    aH, aL = Ps["high"] * factor, Ps["low"] * factor
+    aH, aL, aC = Ps["high"] * factor, Ps["low"] * factor, close * factor
 
     # liquidity: SMA(close * volume, 20) > 3 crore and close > 20 (that day, raw prices)
     cv20 = (close * Ps["volume"]).rolling(20, min_periods=20).mean().iloc[-1]
     last_close = close.iloc[-1]
+    # ADR % = (SMA(High / Low, 20) - 1) * 100   (Chartink: Daily Sma(Daily High / Daily Low, 20) - 1) * 100)
+    adr = ((Ps["high"] / Ps["low"]).rolling(20, min_periods=20).mean().iloc[-1] - 1) * 100
     liquid = (cv20 > LIQ_MIN) & (last_close > MIN_PRICE)
 
     windows, groups, members, shits = {}, {}, {}, {}
@@ -157,6 +163,7 @@ def build_snapshot(P, sec2, hits, asof):
         ind, sub = sec2.get(sym.upper(), ("", ""))
         rec = {"s": sym, "i": ind, "g": sub, "c": round(float(last_close[sym]), 2),
                "v": round(float(cv20[sym]) / 1e7, 1),
+               "r": None if pd.isna(adr.get(sym)) else round(float(adr[sym]), 2),
                "f": {p: sym.upper() in members[p] for p in ("w", "m")},
                "sh": {p: sym in shits[p] for p in ("w", "m")},
                "a": {}, "pt": {}, "cb": {}, "cd": {}}
@@ -184,13 +191,28 @@ def build_snapshot(P, sec2, hits, asof):
                     "tg": {p: sym.upper() in members[p] for p in ("w", "m")}})
     gap.sort(key=lambda r: -(r["o"] / r["pc"]))
 
+    # BB: Close >= Low + (High - Low) * 0.50   AND   Low == Min(5, Low)  (aaj ka low 5-din ka sabse neecha)
+    # split/bonus adjusted prices; turnover = SMA(close * volume, 50)
+    lo_t, hi_t, cl_t = aL.iloc[-1], aH.iloc[-1], aC.iloc[-1]
+    lo_min = aL.tail(BB_LOOKBACK).min()
+    full = aL.tail(BB_LOOKBACK).notna().sum() >= BB_LOOKBACK
+    bb_ok = (cl_t >= lo_t + (hi_t - lo_t) * BB_CLOSE_FRAC) & (lo_t <= lo_min) & full \
+        & (t50 >= BB_MIN_TURN_CR) & (last_close > BB_MIN_PRICE)
+    bb = []
+    for sym in bb_ok[bb_ok].index:
+        ind, sub = sec2.get(sym.upper(), ("", ""))
+        bb.append({"s": sym, "i": ind, "g": sub, "c": round(float(last_close[sym]), 2), "t": round(float(t50[sym]), 1),
+                   "r": None if pd.isna(adr.get(sym)) else round(float(adr[sym]), 2),
+                   "tg": {p: sym.upper() in members[p] for p in ("w", "m")}})
+    bb.sort(key=lambda r: r["s"])
+
     return {
         "updated": asof, "demo": False, "strengths": list(STRENGTHS), "cycles": list(CYCLES),
         "liq_min_cr": LIQ_MIN / 1e7, "min_price": MIN_PRICE, "group_screeners": list(GROUP_SCREENERS),
-        "gap_min_pct": GAP_MIN_PCT, "gap_min_turn_cr": GAP_MIN_TURN_CR,
+        "gap_min_pct": GAP_MIN_PCT, "gap_min_turn_cr": GAP_MIN_TURN_CR, "bb_min_turn_cr": BB_MIN_TURN_CR,
         "windows": windows, "groups": groups,
         "universe": {**{p: int(sum(1 for s in eligible if s.upper() in members[p])) for p in ("w", "m")}, "all": len(eligible)},
-        "stocks": stocks, "gap": gap,
+        "stocks": stocks, "gap": gap, "bb": bb,
     }
 
 
@@ -210,6 +232,7 @@ def build_px(P, snap_dates, snap_dir, extra=()):
             continue
         syms.update(r["s"] for r in snap.get("stocks", []))
         syms.update(r["s"] for r in snap.get("gap", []))
+        syms.update(r["s"] for r in snap.get("bb", []))
     close, prev = P["close"], P["prev_close"]
     ratio = (prev / close.shift(1)).fillna(1.0)
     ratio = ratio.where((ratio - 1).abs() > 0.003, 1.0)
@@ -241,7 +264,13 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
     for d in snap_dates:
         path = os.path.join(snap_dir, f"{d}.json")
         if d != all_dates[-1] and os.path.exists(path):
-            continue                                    # purane din ka snapshot ek baar banta hai
+            try:
+                with open(path) as f:
+                    has_bb = "bb" in json.load(f)
+            except Exception:
+                has_bb = False
+            if has_bb:
+                continue                                # purane din ka snapshot ek baar banta hai (BB nahi hai to dobara)
         out = build_snapshot(P, sec2, hits, d)
         with open(path, "w") as f:
             json.dump(out, f, separators=(",", ":"))
@@ -260,10 +289,10 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
     except Exception as e:
         print("px.json skipped:", e)
     try:                                                  # hover/expand chart data; never breaks the daily job
-        need = {h[2] for h in hits} | {r["s"] for r in latest["stocks"]} | {r["s"] for r in latest["gap"]}
+        need = {h[2] for h in hits} | {r["s"] for r in latest["stocks"]} | {r["s"] for r in latest["gap"]} | {r["s"] for r in latest["bb"]}
         charts.build(hist, need, os.path.join(snap_dir, "chart_data.json"))
     except Exception as e:
         print("chart_data.json skipped:", e)
-    print(f"gann_data.json: {len(latest['stocks'])} stocks with a hit, {len(latest['gap'])} gap-ups; "
+    print(f"gann_data.json: {len(latest['stocks'])} stocks with a hit, {len(latest['gap'])} gap-ups, {len(latest['bb'])} BB; "
           f"{built} snapshot(s) built, {len(snap_dates)} kept in {SNAP_DIR}/")
     return latest
