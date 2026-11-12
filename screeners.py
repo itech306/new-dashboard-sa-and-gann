@@ -79,6 +79,49 @@ def parse_date(v):
     return ""
 
 
+def load_fo(path):
+    """fo_list.csv (symbol) - update.py NSE ki F&O lot-size file se banata hai."""
+    out = set()
+    if path and os.path.exists(path):
+        with open(path, newline="", encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                k = (r.get("symbol") or "").strip().upper()
+                if k:
+                    out.add(k)
+    return out
+
+
+def load_band(path):
+    """price_band.csv (symbol,band) - sirf 2 ya 5 (% circuit) wale stocks rakhte hain."""
+    m = {}
+    if path and os.path.exists(path):
+        with open(path, newline="", encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                k = (r.get("symbol") or "").strip().upper()
+                try:
+                    b = int(float(r.get("band")))
+                except (TypeError, ValueError):
+                    continue
+                if k and b in (2, 5):
+                    m[k] = b
+    return m
+
+
+def load_band_changes(path, cutoff):
+    """band_changes.csv (date,symbol,old,new) -> [[date, symbol, old, new], ...] cutoff ke baad ke."""
+    out = []
+    if path and os.path.exists(path):
+        with open(path, newline="", encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                try:
+                    d, s, o, n = r["date"].strip(), r["symbol"].strip(), int(float(r["old"])), int(float(r["new"]))
+                except (KeyError, TypeError, ValueError, AttributeError):
+                    continue
+                if d >= cutoff and s:
+                    out.append([d, s, o, n])
+    return sorted(out)
+
+
 def load_listing(path):
     """listing_dates.csv (symbol,listing_date) - update.py NSE ki EQUITY_L.csv se banata hai."""
     m = {}
@@ -157,10 +200,13 @@ def compute_hits(hist: pd.DataFrame):
     return res, dates, extra
 
 
-def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = None):
+def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = None,
+        fo_csv: str = None, band_csv: str = None, band_log_csv: str = None):
     res, dates, extra = compute_hits(hist)
     sectors = load_sectors(sector_csv)
     listing = load_listing(listing_csv)
+    fo_set, band_map = load_fo(fo_csv), load_band(band_csv)
+    hist_syms = set(hist["symbol"].unique())
     first_seen = hist.groupby("symbol")["date"].min()
     hist_start = dates[0]
     early = (dt.date.fromisoformat(hist_start) + dt.timedelta(days=10)).isoformat()
@@ -195,7 +241,11 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
         "screeners": SCREENERS,
         "dates": [d for d in dates if d >= cutoff],
         "sectors": sec,
+        # F&O + 2%/5% circuit: saare listed symbols (screener, Gann aur Gap Up teeno pages ke liye)
+        "fo": sorted(s for s in hist_syms if s.upper() in fo_set),
+        "band": {s: band_map[s.upper()] for s in sorted(hist_syms) if s.upper() in band_map},
         "unmapped": unmapped,
+        "band_changes": load_band_changes(band_log_csv, (dt.date.fromisoformat(latest) - dt.timedelta(days=200)).isoformat()),  # [date, symbol, old %, new %]; 0 = no band
         "hits": hits,
     }
     with open(out_path, "w") as f:

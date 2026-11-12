@@ -39,6 +39,12 @@ SCREENER_OUT = os.path.join(HERE, "screener_data.json")
 GANN_OUT = os.path.join(HERE, "gann_data.json")
 LISTING = os.path.join(HERE, "listing_dates.csv")   # NSE EQUITY_L.csv se: symbol,listing_date
 LISTING_URL = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
+FO_CSV = os.path.join(HERE, "fo_list.csv")          # NSE F&O underlyings: symbol
+BAND_CSV = os.path.join(HERE, "price_band.csv")     # circuit band: symbol,band (sirf 2 / 5)
+FO_URL = "https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv"
+BAND_ALL = os.path.join(HERE, "price_band_all.csv")   # saare stocks ka band (kal se compare karne ke liye): symbol,band (0 = no band)
+BAND_LOG = os.path.join(HERE, "band_changes.csv")    # circuit change history: date,symbol,old,new
+BAND_URL = "https://nsearchives.nseindia.com/content/equities/sec_list_{dmy}.csv"  # Securities with price band, DDMMYYYY
 
 AVG_TURNOVER_CR = 10  # 10-day avg volume x close, in crore
 MIN_PRICE = 10
@@ -119,6 +125,75 @@ def refresh_listing(session):
         print(f"listing dates update fail: {e}", file=sys.stderr)
 
 
+def log_band_changes(full, day):
+    """Kal ke band se compare karke jinka band badla unhe band_changes.csv me jodo (date = sec_list file ki date)."""
+    if not os.path.exists(BAND_ALL):
+        print("price_band_all.csv pehli baar bani: aaj se changes track honge.")
+        return
+    old = pd.read_csv(BAND_ALL).set_index("symbol")["band"]
+    new = full.set_index("symbol")["band"]
+    j = pd.concat([old.rename("old"), new.rename("new")], axis=1, join="inner")
+    ch = j[j["old"] != j["new"]].reset_index()
+    if ch.empty:
+        return
+    ch.insert(0, "date", day.isoformat())
+    log = pd.read_csv(BAND_LOG) if os.path.exists(BAND_LOG) else pd.DataFrame(columns=["date", "symbol", "old", "new"])
+    log = pd.concat([log, ch[["date", "symbol", "old", "new"]]], ignore_index=True).drop_duplicates(["date", "symbol"], keep="last")
+    log.sort_values(["date", "symbol"]).to_csv(BAND_LOG, index=False)
+    print(f"band_changes.csv: {len(ch)} circuit changes ({day})")
+
+
+def refresh_fo_band(session):
+    """F&O list + price band (2% / 5% circuit) NSE se. Fail ho to purani CSV files chalti rahengi."""
+    try:
+        r = session.get(FO_URL, headers=HEADERS, timeout=30)
+        if r.status_code == 200:
+            df = pd.read_csv(io.StringIO(r.text))
+            df.columns = [c.strip().upper() for c in df.columns]
+            col = "SYMBOL" if "SYMBOL" in df.columns else df.columns[1]
+            syms = df[col].astype(str).str.strip()
+            syms = syms[syms.str.match(r"^[A-Z0-9&\-]+$") & (syms != "SYMBOL")].drop_duplicates()
+            # index rows (NIFTY, BANKNIFTY ...) bhi list me aate hain, wo screener me kabhi nahi dikhte, harmless
+            if len(syms) > 50:
+                pd.DataFrame({"symbol": syms}).to_csv(FO_CSV, index=False)
+                print(f"fo_list.csv: {len(syms)} symbols")
+            else:
+                print(f"fo_mktlots.csv me kam symbols ({len(syms)}), purani fo_list.csv use hogi.", file=sys.stderr)
+        else:
+            print(f"fo_mktlots.csv nahi mili (HTTP {r.status_code}), purani fo_list.csv use hogi.", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001
+        print(f"F&O list update fail: {e}", file=sys.stderr)
+    # price band: aaj se peeche 7 din tak koi published file dhundho
+    try:
+        for back in range(0, 8):
+            day = dt.date.today() - dt.timedelta(days=back)
+            r = session.get(BAND_URL.format(dmy=day.strftime("%d%m%Y")), headers=HEADERS, timeout=30)
+            if r.status_code != 200:
+                continue
+            df = pd.read_csv(io.StringIO(r.text))
+            df.columns = [c.strip().upper() for c in df.columns]
+            bcol = next((c for c in df.columns if "BAND" in c), None)
+            scol = next((c for c in df.columns if c in ("SYMBOL", "SECURITY ID")), df.columns[0])
+            if bcol is None:
+                print(f"sec_list columns alag hain: {list(df.columns)}", file=sys.stderr)
+                return
+            ser = next((c for c in df.columns if c == "SERIES"), None)
+            if ser:
+                df = df[df[ser].astype(str).str.strip() == "EQ"]
+            band = pd.to_numeric(df[bcol].astype(str).str.replace("%", "", regex=False).str.strip(), errors="coerce")
+            full = pd.DataFrame({"symbol": df[scol].astype(str).str.strip(), "band": band.fillna(0).astype(int)})
+            full = full.drop_duplicates("symbol")
+            log_band_changes(full, day)
+            full.to_csv(BAND_ALL, index=False)
+            out = full[full["band"].isin([2, 5])]
+            out.to_csv(BAND_CSV, index=False)
+            print(f"price_band.csv: {len(out)} stocks in 2%/5% band ({day})")
+            return
+        print("sec_list (price band) file nahi mili, purani price_band.csv use hogi.", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001
+        print(f"price band update fail: {e}", file=sys.stderr)
+
+
 def load_history():
     cols = ["date", "symbol", "open", "high", "low", "close", "prev_close", "volume", "turnover"]
     if os.path.exists(HIST):
@@ -181,6 +256,7 @@ def main():
     session = requests.Session()
     session.get("https://www.nseindia.com/", headers=HEADERS, timeout=30)  # cookies
     refresh_listing(session)
+    refresh_fo_band(session)
     new_frames, fetched = [], []
     d = start
     while d <= today:
@@ -208,7 +284,7 @@ def main():
     # screeners: har run me dobara (sector_map.csv badli ho to naya mapping bhi lag jaye)
     # Strong Sector / Gann me dikkat aaye to bhi market monitor (data.json) ka kaam na rukey
     try:
-        sp = screeners.run(hist, SECTORS, SCREENER_OUT, LISTING)
+        sp = screeners.run(hist, SECTORS, SCREENER_OUT, LISTING, FO_CSV, BAND_CSV, BAND_LOG)
     except Exception as e:  # noqa: BLE001
         import traceback
         traceback.print_exc()
