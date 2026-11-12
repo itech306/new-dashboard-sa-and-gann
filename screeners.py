@@ -250,5 +250,6 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
     }
     with open(out_path, "w") as f:
         json.dump(payload, f, separators=(",", ":"))
-    print(f"screener_data.json: {len(hits)} hits, {len(unmapped)} unmapped symbols")
+    print(f"screener_data.json: {len(hits)} hits, {len(unmapped)} unmapped symbols, "
+          f"{len(payload['fo'])} F&O, {len(payload['band'])} circuit-band (2/5%), {len(payload['band_changes'])} band changes")
     return payload

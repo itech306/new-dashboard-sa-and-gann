@@ -41,10 +41,10 @@ LISTING = os.path.join(HERE, "listing_dates.csv")   # NSE EQUITY_L.csv se: symbo
 LISTING_URL = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
 FO_CSV = os.path.join(HERE, "fo_list.csv")          # NSE F&O underlyings: symbol
 BAND_CSV = os.path.join(HERE, "price_band.csv")     # circuit band: symbol,band (sirf 2 / 5)
-FO_URL = "https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv"
+FO_URLS = ["https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv", "https://archives.nseindia.com/content/fo/fo_mktlots.csv"]
 BAND_ALL = os.path.join(HERE, "price_band_all.csv")   # saare stocks ka band (kal se compare karne ke liye): symbol,band (0 = no band)
 BAND_LOG = os.path.join(HERE, "band_changes.csv")    # circuit change history: date,symbol,old,new
-BAND_URL = "https://nsearchives.nseindia.com/content/equities/sec_list_{dmy}.csv"  # Securities with price band, DDMMYYYY
+BAND_URLS = ["https://nsearchives.nseindia.com/content/equities/sec_list_{dmy}.csv", "https://archives.nseindia.com/content/equities/sec_list_{dmy}.csv"]  # Securities with price band, DDMMYYYY
 
 AVG_TURNOVER_CR = 10  # 10-day avg volume x close, in crore
 MIN_PRICE = 10
@@ -146,8 +146,12 @@ def log_band_changes(full, day):
 def refresh_fo_band(session):
     """F&O list + price band (2% / 5% circuit) NSE se. Fail ho to purani CSV files chalti rahengi."""
     try:
-        r = session.get(FO_URL, headers=HEADERS, timeout=30)
-        if r.status_code == 200:
+        r = None
+        for u in FO_URLS:
+            r = session.get(u, headers=HEADERS, timeout=30)
+            if r.status_code == 200:
+                break
+        if r is not None and r.status_code == 200:
             df = pd.read_csv(io.StringIO(r.text))
             df.columns = [c.strip().upper() for c in df.columns]
             col = "SYMBOL" if "SYMBOL" in df.columns else df.columns[1]
@@ -167,8 +171,12 @@ def refresh_fo_band(session):
     try:
         for back in range(0, 8):
             day = dt.date.today() - dt.timedelta(days=back)
-            r = session.get(BAND_URL.format(dmy=day.strftime("%d%m%Y")), headers=HEADERS, timeout=30)
-            if r.status_code != 200:
+            r = None
+            for u in BAND_URLS:
+                r = session.get(u.format(dmy=day.strftime("%d%m%Y")), headers=HEADERS, timeout=30)
+                if r.status_code == 200:
+                    break
+            if r is None or r.status_code != 200:
                 continue
             df = pd.read_csv(io.StringIO(r.text))
             df.columns = [c.strip().upper() for c in df.columns]
