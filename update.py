@@ -44,7 +44,8 @@ BAND_CSV = os.path.join(HERE, "price_band.csv")     # circuit band: symbol,band 
 FO_URLS = ["https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv", "https://archives.nseindia.com/content/fo/fo_mktlots.csv"]
 BAND_ALL = os.path.join(HERE, "price_band_all.csv")   # saare stocks ka band (kal se compare karne ke liye): symbol,band (0 = no band)
 BAND_LOG = os.path.join(HERE, "band_changes.csv")    # circuit change history: date,symbol,old,new
-BAND_URLS = ["https://nsearchives.nseindia.com/content/equities/sec_list_{dmy}.csv", "https://archives.nseindia.com/content/equities/sec_list_{dmy}.csv"]  # Securities with price band, DDMMYYYY
+BAND_URLS_LIVE = ["https://nsearchives.nseindia.com/content/equities/sec_list.csv"]   # aaj ka band (NSE ki current file)
+BAND_URLS = ["https://nsearchives.nseindia.com/content/equities/sec_list_{dmy}.csv"]   # fallback: dated file  # Securities with price band, DDMMYYYY
 
 AVG_TURNOVER_CR = 10  # 10-day avg volume x close, in crore
 MIN_PRICE = 10
@@ -167,37 +168,52 @@ def refresh_fo_band(session):
             print(f"fo_mktlots.csv nahi mili (HTTP {r.status_code}), purani fo_list.csv use hogi.", file=sys.stderr)
     except Exception as e:  # noqa: BLE001
         print(f"F&O list update fail: {e}", file=sys.stderr)
-    # price band: aaj se peeche 7 din tak koi published file dhundho
+    # price band: NSE ki sec_list.csv (Symbol,Series,Security Name,Band,Remarks), roz badalti hai. Band = 2/5/10/20 ya "No Band"
     try:
+        today = dt.date.today()
+        cands = [(u, today) for u in BAND_URLS_LIVE]
         for back in range(0, 8):
-            day = dt.date.today() - dt.timedelta(days=back)
-            r = None
-            for u in BAND_URLS:
-                r = session.get(u.format(dmy=day.strftime("%d%m%Y")), headers=HEADERS, timeout=30)
-                if r.status_code == 200:
-                    break
-            if r is None or r.status_code != 200:
+            day = today - dt.timedelta(days=back)
+            cands += [(u.format(dmy=day.strftime("%d%m%Y")), day) for u in BAND_URLS]
+        r, day = None, today
+        for u, d in cands:
+            try:
+                r = session.get(u, headers=HEADERS, timeout=30)
+            except requests.RequestException:
+                r = None
                 continue
-            df = pd.read_csv(io.StringIO(r.text))
-            df.columns = [c.strip().upper() for c in df.columns]
-            bcol = next((c for c in df.columns if "BAND" in c), None)
-            scol = next((c for c in df.columns if c in ("SYMBOL", "SECURITY ID")), df.columns[0])
-            if bcol is None:
-                print(f"sec_list columns alag hain: {list(df.columns)}", file=sys.stderr)
-                return
-            ser = next((c for c in df.columns if c == "SERIES"), None)
-            if ser:
-                df = df[df[ser].astype(str).str.strip() == "EQ"]
-            band = pd.to_numeric(df[bcol].astype(str).str.replace("%", "", regex=False).str.strip(), errors="coerce")
-            full = pd.DataFrame({"symbol": df[scol].astype(str).str.strip(), "band": band.fillna(0).astype(int)})
-            full = full.drop_duplicates("symbol")
-            log_band_changes(full, day)
-            full.to_csv(BAND_ALL, index=False)
-            out = full[full["band"].isin([2, 5])]
-            out.to_csv(BAND_CSV, index=False)
-            print(f"price_band.csv: {len(out)} stocks in 2%/5% band ({day})")
+            if r.status_code == 200 and len(r.content) > 1000:
+                day = d
+                print(f"price band file: {u}")
+                break
+            r = None
+        if r is None:
+            print("sec_list (price band) file nahi mili, purani price_band.csv use hogi.", file=sys.stderr)
             return
-        print("sec_list (price band) file nahi mili, purani price_band.csv use hogi.", file=sys.stderr)
+        df = pd.read_csv(io.StringIO(r.text))
+        df.columns = [c.strip().upper() for c in df.columns]
+        bcol = next((c for c in df.columns if "BAND" in c), None)
+        scol = next((c for c in df.columns if c in ("SYMBOL", "SECURITY ID")), df.columns[0])
+        if bcol is None:
+            print(f"sec_list columns alag hain: {list(df.columns)}", file=sys.stderr)
+            return
+        ser = next((c for c in df.columns if c == "SERIES"), None)
+        if ser:
+            df = df[df[ser].astype(str).str.strip() == "EQ"]
+        band = pd.to_numeric(df[bcol].astype(str).str.replace("%", "", regex=False).str.strip(), errors="coerce")
+        full = pd.DataFrame({"symbol": df[scol].astype(str).str.strip(), "band": band.fillna(0).astype(int)})
+        full = full.drop_duplicates("symbol")
+        log_band_changes(full, day)
+        full.to_csv(BAND_ALL, index=False)
+        out = full[full["band"].isin([2, 5])]
+        out.to_csv(BAND_CSV, index=False)
+        print(f"price_band.csv: {len(out)} stocks in 2%/5% band ({day}), {int((full['band'] == 0).sum())} 'No Band'")
+        # F&O list nahi bani to "No Band" wale stocks (F&O stocks par band nahi hota) ko approx F&O maan lo
+        if not os.path.exists(FO_CSV):
+            nb = full[full["band"] == 0][["symbol"]]
+            if len(nb) > 50:
+                nb.to_csv(FO_CSV, index=False)
+                print(f"fo_list.csv: fo_mktlots nahi mili, 'No Band' se approx {len(nb)} F&O stocks bane", file=sys.stderr)
     except Exception as e:  # noqa: BLE001
         print(f"price band update fail: {e}", file=sys.stderr)
 
