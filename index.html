@@ -210,6 +210,26 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
 #sqr li.em{cursor:default;color:var(--mut);font-weight:500}
 #sqb{display:none}
 @media (max-width:860px){#sqb{display:inline-flex}.sq{display:none;position:absolute;left:0;right:0;top:100%;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--line)}body.sqo .sq{display:flex}.sq input,.sq input:focus{width:100%}.sq .si{left:28px}#sqr{left:16px;right:16px;min-width:0}}
+
+/* Tools > Setups to Focus */
+#v-setups{--sbar:#9aa6b8;--sth:#d6336c;--ssp:#c26a00;--stp:#6d4ad6;--sgrid:rgba(14,27,24,.1)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #v-setups{--sbar:#3c5578;--sth:#ff5c93;--ssp:#ffb020;--stp:#b69cff;--sgrid:rgba(255,255,255,.08)}}
+:root[data-theme="dark"] #v-setups{--sbar:#3c5578;--sth:#ff5c93;--ssp:#ffb020;--stp:#b69cff;--sgrid:rgba(255,255,255,.08)}
+#v-setups .panel{margin-bottom:16px;padding-bottom:14px}
+#v-setups .tgp{max-width:100%;min-width:0}#v-setups .seg{max-width:100%;overflow-x:auto;scrollbar-width:none}#v-setups .seg::-webkit-scrollbar{display:none}#v-setups .seg button{flex:none}
+.st-h{display:flex;flex-wrap:wrap;gap:2px 14px;align-items:baseline;margin:12px 0 2px}.st-h h3{margin:0;font-size:14px;font-weight:600}.st-h .n,.st-h .f{color:var(--mut);font-size:12px}.st-h .n{font-family:var(--mono)}
+.st-scroll{overflow-x:auto}.st-scroll svg{display:block;min-width:900px;width:100%;height:auto}.st-scroll svg text{font-family:var(--mono)}
+.stt{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0 0 16px}
+.stc{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card)}.stc b{display:block;font-size:13px}.stc .v{font:600 22px var(--mono)}.stc .x{color:var(--mut);font:12px var(--mono)}
+.stc .fl{display:inline-block;margin:4px 4px 0 0;padding:1px 7px;border-radius:999px;font:600 11px var(--mono);color:#fff}
+.stcur{border:1.5px solid var(--ssp);box-shadow:0 0 0 4px color-mix(in srgb,var(--ssp) 14%,transparent)}.stcur.none{border-color:var(--line);box-shadow:none}
+.stcur .hn{color:var(--mut);font:12.5px var(--mono)}.stcg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;padding:4px 0 2px}
+.stk{border:1.5px solid var(--ssp);border-radius:14px;padding:11px 13px;background:color-mix(in srgb,var(--ssp) 12%,transparent)}.stk b{font-size:14px}.stk .v{font:700 26px var(--mono);color:var(--ssp)}.stk .x{font:12.5px var(--mono);color:var(--fg)}
+.stl{margin:10px 0 0;padding:0;list-style:none;font:12.5px var(--mono);color:var(--mut);display:grid;gap:4px}.stl b{color:var(--fg);font-family:inherit}.stl .rc{color:var(--ssp)}
+#st-tip{position:fixed;z-index:60;pointer-events:none;background:var(--fg);color:var(--bg);font:12px var(--mono);padding:6px 9px;border-radius:6px;display:none;white-space:nowrap}
+@media (min-width:861px) and (max-width:1340px){.links{gap:0}.links .nl{padding:9px 8px;font-size:13.5px;white-space:nowrap}.sq input{width:120px}.sq input:focus{width:170px}}
+@media (min-width:861px) and (max-width:1120px){.bt .upd{display:none}.bt .bn{font-size:14px}.links .nl{padding:8px 6px;font-size:12.5px}.sq input{width:84px;padding-left:28px}.sq input:focus{width:130px}.top{gap:6px}}
+@media (min-width:861px) and (max-width:1000px){.nb2 .bt{display:none}}
 </style></head><body>
 <div class="aurora"></div>
 <div class="app">
@@ -305,6 +325,22 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
     <div class="ph"><h2 id="bb-h"></h2><div class="tools"><input type="search" id="bb-q" placeholder="Search stock"><button class="more" data-act="copy">📋 Copy all</button><button class="more" data-act="save">💾 Save group</button></div></div>
     <div class="tbl"><table><thead><tr><th data-k="s" title="Sort A–Z / Z–A">Stock</th><th>Group</th><th class="r" data-k="mx" title="Best price after the selected date (till latest) vs that day's close. Click to sort.">Max Return</th></tr></thead><tbody id="bb-rows"></tbody></table></div></section>
     <div class="demo" id="bb-demo">Demo: BB shows sample data. Real results appear after the daily update runs.</div>
+  </div>
+  <div class="view" id="v-tools" hidden>
+    <div class="vh"><div><h1>Tools · Sector Mapping</h1><p>Stocks that show up in your screeners (or are recent IPOs) but are not in <b>sector_map.csv</b> yet. Copy them, paste into Claude to get Industry and Subgroup, then add the lines to sector_map.csv on GitHub.</p></div><div class="tools"><div class="seg" id="tl-win"></div><div class="seg" id="tl-src"></div><div class="seg" id="tl-ipo"></div></div></div>
+    <section class="panel"><div class="ph"><h2 id="tl-h"></h2><div class="tools"><input type="search" id="tl-q" placeholder="Search stock"><button class="more" id="tl-c1" type="button">📋 Copy for Claude</button><button class="more" id="tl-c2" type="button">📋 Symbols only</button></div></div>
+    <div class="tbl"><table><thead><tr><th>Stock</th><th>Listed</th><th>Seen in</th></tr></thead><tbody id="tl-rows"></tbody></table></div>
+    <details style="padding:12px 16px"><summary style="cursor:pointer;font-weight:600">Preview of the text that “Copy for Claude” copies</summary><pre id="tl-pre" style="white-space:pre-wrap;max-height:320px;overflow:auto;margin:10px 0 0;font-size:12.5px"></pre></details>
+    <div class="demo" id="tl-demo" hidden></div></section>
+  </div>
+  <div class="view" id="v-setups" hidden>
+    <div class="vh"><div><h1>Tools · Setups to Focus</h1><p>How many stocks matched each of the 6 setups, every trading day (one bar = one day). Pink bar = thrust, amber = spike, purple = 40+ (Market Top). Tap or hover a bar for the date and count.</p></div></div>
+    <div class="tools" style="margin-bottom:14px"><div class="tgp"><span class="tl">Thrust</span><div class="seg" id="st-gaps"></div></div><div class="tgp"><span class="tl">Year</span><div class="seg" id="st-yrs"></div></div><div class="tgp"><span class="tl">Y-axis</span><div class="seg" id="st-ys"></div></div><div class="tgp"><span class="tl">Bars</span><div class="seg" id="st-vw"></div></div><div class="tgp"><span class="tl">Spike</span><div class="seg" id="st-sp"></div></div><div class="tgp"><span class="tl">Scans</span><div class="seg" id="st-scans"></div></div></div>
+    <section class="panel stcur" id="st-cur"></section>
+    <div class="stt" id="st-today"></div>
+    <div id="st-years"></div>
+    <p class="note" id="st-note" style="color:var(--mut);font-size:12.5px"></p>
+    <div id="st-tip"></div>
   </div>
   <div class="view" id="v-cc" hidden>
     <div class="vh"><div><h1>Circuit Changes</h1><p>Stocks whose price band (circuit limit) changed. A higher band means the limit was relaxed; a lower band means it was tightened.</p></div><div class="tools"><div class="seg" id="cc-win"></div><div class="seg" id="cc-dir"></div><div class="tgp"><span class="tl">F&amp;O</span><div class="seg" id="cc-fo"></div></div></div></div>
@@ -556,6 +592,94 @@ function fcNotes(){var msgs=[];if(D&&!D.demo){
   if(!(D.band&&Object.keys(D.band).length))msgs.push("2% / 5% circuit list is missing, so circuit badges and the circuit filter show nothing. Check the log for the price_band.csv line.");}
  ["v-scr","v-gann","v-gap","v-bb","v-cc"].forEach(function(v){var h=$(v),n=h.querySelector(".fcn");if(!n){n=document.createElement("div");n.className="demo fcn";var vh=h.querySelector(".vh");vh.parentNode.insertBefore(n,vh.nextSibling)}
   n.hidden=!msgs.length;n.textContent=msgs.join(" ")})}
+/* Tools: Sector Mapping helper (unmapped / IPO stocks -> text to paste into Claude) */
+var tlW="w",tlS="a",tlI="0";
+function tlGroups(){var g=D&&D.groups;if(!g){g={};Object.keys((D&&D.sectors)||{}).forEach(function(k){var x=D.sectors[k];if(x&&x[0]&&x[1]){(g[x[0]]=g[x[0]]||{})[x[1]]=1}});Object.keys(g).forEach(function(k){g[k]=Object.keys(g[k]).sort()})}return g}
+function tlRows(){var m={},a=ASOF||(D&&D.updated)||"";if(!D)return[];
+ function mapped(sym){var x=D.sectors[sym];return!!(x&&x[0])}
+ function add(sym,lab){if(!sym)return;var o=m[sym]||(m[sym]={s:sym,l:[]});if(o.l.indexOf(lab)<0)o.l.push(lab)}
+ function gone(o){return o&&!Array.isArray(o)&&o.s&&!o.i}
+ if(tlS!=="g"){var st=tlW==="a"?"0000":winStart(tlW);D.hits.forEach(function(h){if(h[0]<st||h[0]>a||mapped(h[2]))return;add(h[2],SCI[h[1]]?SCI[h[1]].n:h[1])});
+  if(tlW==="a")(D.unmapped||[]).forEach(function(x){if(!mapped(x))add(x,"Screener (saved)")})}
+ if(tlS!=="s"){((GD&&GD.stocks)||[]).forEach(function(o){if(gone(o))add(o.s,"Gann")});(GU||[]).forEach(function(o){if(gone(o))add(o.s,"Gap Up")});(BB||[]).forEach(function(o){if(gone(o))add(o.s,"BB")})}
+ return Object.keys(m).map(function(k){var o=m[k],x=D.sectors[k];o.d=(x&&x[2])||(D.listing&&D.listing[k])||"";o.ipo=isIpo(k);return o}).filter(function(o){return tlI!=="1"||o.ipo}).sort(function(x,y){return x.ipo!==y.ipo?(x.ipo?-1:1):x.s<y.s?-1:1})}
+function tlText(r,withGroups){var t="Niche diye NSE stocks ka Industry aur Subgroup batao. Output sirf CSV lines me do (header nahi), exact format: Security Id,Industry New Name,ISubgroup Name\nIndustry aur Subgroup ke naam neeche wali existing list se hi lo (spelling same rakho). Naya subgroup tabhi banao jab koi bhi fit na ho.\n";
+ if(withGroups){t+="\nExisting groups (Industry: Subgroups)\n";var g=tlGroups();Object.keys(g).sort().forEach(function(k){t+=k+": "+g[k].join(", ")+"\n"})}
+ t+="\nStocks ("+r.length+")\n"+r.map(function(o){return o.s+(o.d?" (listed "+o.d+")":"")}).join("\n");return t}
+function tools(){var re=function(){tools();build();route()};
+ segBtns($("tl-win"),[["w","Weekly"],["m","Monthly"],["a","All saved"]],tlW,function(v){tlW=v;re()});
+ segBtns($("tl-src"),[["a","Everything"],["s","Screeners only"],["g","Gann · Gap Up · BB only"]],tlS,function(v){tlS=v;re()});
+ segBtns($("tl-ipo"),[["0","All unmapped"],["1","IPO only (last 1 year)"]],tlI,function(v){tlI=v;re()});
+ var ql=$("tl-q").value.toLowerCase(),all=tlRows(),r=all.filter(function(o){return!ql||o.s.toLowerCase().indexOf(ql)>=0}),tb=$("tl-rows");
+ $("tl-h").textContent=r.length+(r.length===1?" stock":" stocks")+" without Industry / Subgroup";xRe();LIST=r.map(function(o){return o.s});LN="Sector Mapping";tb.textContent="";
+ r.forEach(function(o){var tr=document.createElement("tr"),c=document.createElement("td");c.appendChild(tv(o.s));if(o.ipo){var b=document.createElement("span");b.className="badge ipo";b.textContent="IPO";c.appendChild(b)}tr.appendChild(c);tr.appendChild(td(o.d?o.d:"-","num"));
+  var s=document.createElement("td");s.className="sub";s.textContent=o.l.join(" · ");tr.appendChild(s);tb.appendChild(tr)});
+ if(!r.length){var e=document.createElement("tr"),ce=td("Nothing to map here. Every stock in this view already has an Industry and Subgroup.","sub");ce.colSpan=3;e.appendChild(ce);tb.appendChild(e)}
+ $("tl-pre").textContent=r.length?tlText(r,true):"";
+ $("tl-c1").disabled=$("tl-c2").disabled=!r.length;
+ $("tl-demo").hidden=!(D&&D.demo);$("tl-demo").textContent="Demo: these stocks are sample data. Real unmapped stocks appear after the daily update runs.";
+ $("tl-c1").onclick=function(){copyText(tlText(r,true),"Copied "+r.length+" stocks for Claude")};
+ $("tl-c2").onclick=function(){copyText(r.map(function(o){return o.s}).join("\n"),"Copied "+r.length+" symbols")}}
+/* Tools: Setups to Focus (6 scans, daily counts) */
+var STP=null,stState="idle",stGi=-1,stYear="All",stYG=false,stView="count",stSp=2.5,stShow=[],ST_H=270,ST_ML=34,ST_MR=8,ST_MT=32,ST_MB=40,ST_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],ST_NICE=[8,12,20,28,40,60,80,100,120,160,200,240,280,320,400,480,600,800,1000,1200];
+function stFmt(d){var p=d.split("-");return+p[2]+" "+ST_MON[+p[1]-1]+" "+p[0]}
+function stShort(d){var p=d.split("-");return+p[2]+" "+ST_MON[+p[1]-1]}
+function stIsSp(r){return stSp>0&&r[4]!=null&&r[4]>=stSp&&r[1]>=10}
+function stPrep(j){j.scans.forEach(function(sc){var v=sc.rows,mx=0;v.forEach(function(r,i){var p=v.slice(Math.max(0,i-20),i);if(p.length>=10){var a=p.reduce(function(t,x){return t+x[1]},0)/p.length;r[3]=a;r[4]=a>=3?r[1]/a:null}else{r[3]=null;r[4]=null}if(r[1]>mx)mx=r[1]});sc.ymax=Math.max(sc.ymax||0,ST_NICE.find(function(n){return n>=mx})||mx)});stShow=j.scans.map(function(){return true});return j}
+function loadSetups(){if(stState!=="idle")return;stState="loading";
+ function done(j){STP=stPrep(j);stState="ready";build();Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===cur)});if(cur==="tools-setups")setupsPage()}
+ function fail(){stState="error";if(cur==="tools-setups")setupsPage()}
+ if(window.__SETUPS){done(window.__SETUPS);return}
+ fetch("setups_data.json",{cache:"no-cache"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.scans)done(j);else fail()}).catch(fail)}
+function stTodayCount(){if(!STP)return"";var n=0;STP.scans.forEach(function(sc){var r=sc.rows[sc.rows.length-1];if(r&&(stIsSp(r)||(r[2]&1)))n++});return n||""}
+function stToday(){var h=$("st-today");h.textContent="";STP.scans.forEach(function(sc,k){var r=sc.rows[sc.rows.length-1];if(!r)return;var c=document.createElement("div");c.className="stc";var b=document.createElement("b");b.textContent=sc.name;c.appendChild(b);var v=document.createElement("div");v.className="v";v.textContent=r[1];c.appendChild(v);var x=document.createElement("div");x.className="x";x.textContent=stFmt(r[0])+(r[3]!=null?" · "+(r[4]!=null?r[4].toFixed(1)+"x":"-")+" of 20d avg "+r[3].toFixed(1):"");c.appendChild(x);
+ function fl(t,col){var f=document.createElement("span");f.className="fl";f.style.background="var("+col+")";f.textContent=t;c.appendChild(f)}
+ if(r[2]&1)fl("THRUST","--sth");if(stIsSp(r))fl("SPIKE","--ssp");if(sc.thr&&r[1]>=sc.thr)fl(sc.thr+"+","--stp");h.appendChild(c)})}
+function stChart(rows,YMAX,thr){var W=1100,N=rows.length,iw=W-ST_ML-ST_MR,slot=iw/N,bw=Math.max(1.4,slot*.78),ih=ST_H-ST_MT-ST_MB,tip=$("st-tip"),NS="http://www.w3.org/2000/svg";
+ var y=function(v){return ST_MT+ih-v/YMAX*ih},s=document.createElementNS(NS,"svg");s.setAttribute("viewBox","0 0 "+W+" "+ST_H);var g="",RV=stView==="ratio",val=function(r){return RV?Math.min(r[4]||0,6):r[1]};
+ (RV?[0,1,2,3,4,5,6]:[0,1,2,3,4].map(function(k){return k*YMAX/4})).forEach(function(v){g+='<line x1="'+ST_ML+'" x2="'+(W-ST_MR)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--sgrid)"/><text x="'+(ST_ML-6)+'" y="'+(y(v)+4)+'" text-anchor="end" font-size="11" fill="var(--mut)">'+v+(RV?"x":"")+"</text>"});
+ if(RV&&stSp>0)g+='<line x1="'+ST_ML+'" x2="'+(W-ST_MR)+'" y1="'+y(stSp)+'" y2="'+y(stSp)+'" stroke="var(--ssp)" stroke-dasharray="5 4" opacity=".8"/>';
+ var lastL=-9;if(thr&&!RV)g+='<line x1="'+ST_ML+'" x2="'+(W-ST_MR)+'" y1="'+y(thr)+'" y2="'+y(thr)+'" stroke="var(--stp)" stroke-dasharray="2 3" stroke-width="1.4"/><text x="'+(W-ST_MR)+'" y="'+(y(thr)-4)+'" text-anchor="end" font-size="11" fill="var(--stp)">'+thr+"+</text>";
+ var ms=rows.map(function(r,i){return i===0||r[0].slice(5,7)!==rows[i-1][0].slice(5,7)?i:-1}).filter(function(i){return i>=0});
+ rows.forEach(function(r,i){var x=ST_ML+i*slot+(slot-bw)/2,top=y(val(r)),cx=ST_ML+i*slot+slot/2,isT=stGi>=0&&(r[2]>>stGi&1),isS=stIsSp(r),isH=thr&&!RV&&r[1]>=thr;
+  g+='<rect x="'+x+'" y="'+top+'" width="'+bw+'" height="'+(ST_MT+ih-top)+'" fill="'+(isT?"var(--sth)":isH?"var(--stp)":isS?"var(--ssp)":"var(--sbar)")+'"/>';
+  if(isT||((isS||isH)&&i-lastL>=5)){lastL=i;var an=cx>W-40?"end":cx<ST_ML+30?"start":"middle",tx=an==="end"?W-ST_MR:cx;g+='<text x="'+tx+'" y="'+(top-17)+'" text-anchor="'+an+'" font-size="11" font-weight="500" fill="var(--fg)">'+stShort(r[0])+'</text><text x="'+tx+'" y="'+(top-5)+'" text-anchor="'+an+'" font-size="11" fill="'+(isT?"var(--sth)":isH?"var(--stp)":"var(--ssp)")+'">'+(RV?(r[4]||0).toFixed(1)+"x":r[1])+"</text>"}
+  var first=ms.indexOf(i)>=0;if(first||(i%5===0&&ms.every(function(m){return Math.abs(m-i)>=3}))){g+='<line x1="'+cx+'" x2="'+cx+'" y1="'+(ST_MT+ih)+'" y2="'+(ST_MT+ih+(first?9:4))+'" stroke="var(--mut)"/><text transform="translate('+(cx+3)+","+(ST_MT+ih+13)+') rotate(60)" font-size="10" fill="'+(first?"var(--fg)":"var(--mut)")+'">'+stShort(r[0])+"</text>"}});
+ if(!RV){var d="";rows.forEach(function(r,i){if(r[3]!=null)d+=(d?"L":"M")+(ST_ML+i*slot+slot/2)+","+y(Math.min(r[3],YMAX))});if(d)g+='<path d="'+d+'" fill="none" stroke="var(--fg)" stroke-width="1.3" stroke-dasharray="3 2" opacity=".55"/>'}
+ s.innerHTML=g;
+ rows.forEach(function(r,i){var h=document.createElementNS(NS,"rect");h.setAttribute("x",ST_ML+i*slot);h.setAttribute("y",ST_MT);h.setAttribute("width",slot);h.setAttribute("height",ih);h.setAttribute("fill","transparent");
+  var show=function(e){tip.style.display="block";tip.textContent=stFmt(r[0])+" · "+r[1]+" stocks"+(r[4]!=null?" · "+r[4].toFixed(1)+"x avg":"")+(stGi>=0&&(r[2]>>stGi&1)?" · THRUST":"")+(stIsSp(r)?" · SPIKE":"")+(thr&&r[1]>=thr?" · "+thr+"+":"");tip.style.left=Math.max(8,Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8))+"px";tip.style.top=Math.max(8,e.clientY-40)+"px"};
+  h.addEventListener("pointermove",show);h.addEventListener("pointerdown",show);h.addEventListener("pointerleave",function(){tip.style.display="none"});s.appendChild(h)});return s}
+function stCurrent(){var box=$("st-cur"),lv=stSp>0?stSp:2.5,last="",now=[],rest=[];
+ function sp(r){return r&&r[4]!=null&&r[4]>=lv&&r[1]>=10}
+ STP.scans.forEach(function(sc){var n=sc.rows.length,r=sc.rows[n-1];if(!r)return;if(r[0]>last)last=r[0];
+  if(sp(r)){now.push({sc:sc,r:r});return}
+  for(var i=n-2;i>=0;i--){if(sp(sc.rows[i])){rest.push({sc:sc,r:sc.rows[i],ago:n-1-i});return}}rest.push({sc:sc,r:null,ago:null})});
+ box.className="panel stcur"+(now.length?"":" none");box.textContent="";
+ var hd=document.createElement("div");hd.className="ph";var h=document.createElement("h2");h.textContent="Current Spike";var hn=document.createElement("span");hn.className="hn";hn.textContent=stFmt(last)+" · "+lv+"x of 20-day avg or more";hd.appendChild(h);hd.appendChild(hn);box.appendChild(hd);
+ if(now.length){var g=document.createElement("div");g.className="stcg";now.forEach(function(o){var c=document.createElement("div");c.className="stk";var b=document.createElement("b");b.textContent=o.sc.name;c.appendChild(b);var v=document.createElement("div");v.className="v";v.textContent=o.r[1]+" stocks";c.appendChild(v);var x=document.createElement("div");x.className="x";x.textContent=o.r[4].toFixed(1)+"x avg ("+o.r[3].toFixed(1)+")"+(o.r[2]&1?" · THRUST":"")+(o.sc.thr&&o.r[1]>=o.sc.thr?" · "+o.sc.thr+"+":"");c.appendChild(x);g.appendChild(c)});box.appendChild(g)}
+ else{var m=document.createElement("div");m.className="hn";m.style.padding="2px 2px 4px";m.textContent="No spike today in any of the 6 setups.";box.appendChild(m)}
+ var ul=document.createElement("ul");ul.className="stl";rest.forEach(function(o){var li=document.createElement("li"),b=document.createElement("b");b.textContent=o.sc.name+": ";li.appendChild(b);
+  if(!o.r)li.appendChild(document.createTextNode("no spike in the saved history"));
+  else{var t=stFmt(o.r[0])+" · "+o.r[1]+" stocks · "+o.r[4].toFixed(1)+"x · "+o.ago+(o.ago===1?" trading day ago":" trading days ago");var sp2=document.createElement("span");if(o.ago<=5)sp2.className="rc";sp2.textContent="last spike "+t;li.appendChild(sp2)}ul.appendChild(li)});box.appendChild(ul)}
+function stBuild(){var host=$("st-years");host.textContent="";var yrs={};STP.scans.forEach(function(sc){sc.rows.forEach(function(r){yrs[r[0].slice(0,4)]=1})});var years=Object.keys(yrs).sort(),per=[];years.forEach(function(y){per.push([y,1,6]);per.push([y,7,12])});per.reverse();
+ per.forEach(function(P){var y=P[0],m1=P[1],m2=P[2];if(stYear!=="All"&&stYear!==y)return;var sec=document.createElement("section");sec.className="panel";var hh=document.createElement("div");hh.className="ph";var h2=document.createElement("h2");h2.textContent=ST_MON[m1-1]+" - "+ST_MON[m2-1]+" "+y;hh.appendChild(h2);sec.appendChild(hh);
+  STP.scans.forEach(function(sc,si){if(!stShow[si])return;var rows=sc.rows.filter(function(r){var m=+r[0].slice(5,7);return r[0].indexOf(y)===0&&m>=m1&&m<=m2});if(!rows.length)return;
+   var nt=(stGi>=0?", "+rows.filter(function(r){return r[2]>>stGi&1}).length+" thrust":"")+(stSp>0?", "+rows.filter(stIsSp).length+" spike":"")+(sc.thr?", "+rows.filter(function(r){return r[1]>=sc.thr}).length+" days "+sc.thr+"+":"");
+   var blk=document.createElement("div"),hd=document.createElement("div");hd.className="st-h";var t=document.createElement("h3");t.textContent=sc.name;var n=document.createElement("span");n.className="n";n.textContent=rows.length+" trading days, "+stShort(rows[0][0])+" to "+stShort(rows[rows.length-1][0])+nt;var f=document.createElement("span");f.className="f";f.textContent=sc.f;hd.appendChild(t);hd.appendChild(n);hd.appendChild(f);blk.appendChild(hd);
+   var lm=Math.max.apply(null,rows.map(function(r){return r[1]})),loc=ST_NICE.find(function(v){return v>=lm})||lm,sc2=document.createElement("div");sc2.className="st-scroll";sc2.appendChild(stChart(rows,stView==="ratio"?6:(stYG?sc.ymax:loc),sc.thr));blk.appendChild(sc2);sec.appendChild(blk)});
+  if(sec.children.length>1)host.appendChild(sec)})}
+function setupsPage(){var host=$("st-years");
+ if(!STP){$("st-today").textContent="";host.textContent=stState==="error"?"setups_data.json not found. Add it to the repo (setups_data.json from the zip) and run Daily EOD update.":"Loading...";return}
+ var re=function(){setupsPage()},yrs={};STP.scans.forEach(function(sc){sc.rows.forEach(function(r){yrs[r[0].slice(0,4)]=1})});
+ segBtns($("st-gaps"),[["-1","None"],["0","15"],["1","16"],["2","17"],["3","18"],["4","19"],["5","20"]],String(stGi),function(v){stGi=+v;re()});
+ segBtns($("st-yrs"),[["All","All"]].concat(Object.keys(yrs).sort().reverse().map(function(y){return[y,y]})),stYear,function(v){stYear=v;re()});
+ segBtns($("st-ys"),[["1","Same"],["0","Own"]],stYG?"1":"0",function(v){stYG=v==="1";re()});
+ segBtns($("st-vw"),[["count","Count"],["ratio","Spike x"]],stView,function(v){stView=v;re()});
+ segBtns($("st-sp"),[["0","Off"],["2","2x"],["2.5","2.5x"],["3","3x"],["4","4x"]],String(stSp),function(v){stSp=+v;re()});
+ var sb=$("st-scans");sb.textContent="";STP.scans.forEach(function(sc,k){var b=document.createElement("button");b.textContent=sc.name;b.setAttribute("aria-pressed",stShow[k]);b.onclick=function(){stShow[k]=!stShow[k];re()};sb.appendChild(b)});
+ stCurrent();stToday();stBuild();xRe();LIST=[];
+ $("st-note").textContent="Thrust: count is 2.5x the average of the previous 5 days or more (Breakout 1.6x, because its daily count sits near 250 and R1 resets at month start) and at least 20 stocks; two thrusts are at least the chosen gap of trading days apart, and the bigger count wins inside the gap. Spike: count is the chosen multiple of the previous 20-day average (count 10+, average 3+). Count view: dotted line = previous 20-day average. Counts shift when the number of symbols in the data changes. Updated "+stFmt(STP.updated)+"."}
 /* Circuit changes */
 var ccW=30,ccD="a";
 function brank(b){return b===0?999:b}
@@ -626,14 +750,15 @@ function build(){var L=$("links");L.textContent="";
  function dd(label,g){var d=document.createElement("div");d.className="dd";var b=document.createElement("button");b.className="nl";b.dataset.g=g;b.setAttribute("aria-haspopup","true");b.setAttribute("aria-expanded","false");b.appendChild(document.createTextNode(label+" "));var c=document.createElement("span");c.className="car";c.textContent="▾";b.appendChild(c);var mn=document.createElement("div");mn.className="menu";d.appendChild(b);d.appendChild(mn);L.appendChild(d);return mn}
  var s=dd("Sector & Group Movers","scr");SC.forEach(function(x){item(s,x.id.replace("_","-"),x.ic,x.n,x.k,inWin(x.id,x.def==="d"?"d":"w").length)});
  if(!G&&!GR)G=gsample();var g=dd("Screener","gann");
- item(g,"gann-pt","P·T","Price-to-Time","#6aa2ff",gc("pt"));item(g,"gann-369","369","3-6-9 Time Cluster","#c98af0",gc("cb"));item(g,"gann-gap","GAP","Gap Up","#f0b429",gpRows("").length);item(g,"gann-bb","BB","BB","#4ad6a7",bbRows("").length);item(g,"circuit-changes","%","Circuit Changes","#ff8a5c",ccRows().length)}
+ item(g,"gann-pt","P·T","Price-to-Time","#6aa2ff",gc("pt"));item(g,"gann-369","369","3-6-9 Time Cluster","#c98af0",gc("cb"));item(g,"gann-gap","GAP","Gap Up","#f0b429",gpRows("").length);item(g,"gann-bb","BB","BB","#4ad6a7",bbRows("").length);item(g,"circuit-changes","%","Circuit Changes","#ff8a5c",ccRows().length);
+ var t=dd("Tools","tools");item(t,"tools-sector","MAP","Sector Mapping","#8f9bff",tlRows().length);item(t,"tools-setups","SET","Setups to Focus","#f0b429",stTodayCount())}
 function route(){var id=location.hash.slice(1)||"home";cur=id;document.body.classList.remove("open");
- Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===id)});var grp=id==="home"?"":id==="monitor"?"monitor":((id.indexOf("gann")===0||id==="circuit-changes")?"gann":"scr");Array.prototype.forEach.call(document.querySelectorAll("[data-g]"),function(a){a.classList.toggle("on",a.dataset.g===grp)});
+ Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===id)});var grp=id==="home"?"":id==="monitor"?"monitor":(id==="tools-sector"||id==="tools-setups")?"tools":((id.indexOf("gann")===0||id==="circuit-changes")?"gann":"scr");Array.prototype.forEach.call(document.querySelectorAll("[data-g]"),function(a){a.classList.toggle("on",a.dataset.g===grp)});
  var sid=id.replace("-","_"),isS=!!SCI[sid],isG=id==="gann-pt"||id==="gann-369";
- $("v-home").hidden=id!=="home";$("v-monitor").hidden=id!=="monitor";$("v-scr").hidden=!isS;$("v-gann").hidden=!isG;$("v-gap").hidden=id!=="gann-gap";$("v-bb").hidden=id!=="gann-bb";$("v-cc").hidden=id!=="circuit-changes";fcNotes();$("dpbar").hidden=!(isS||isG||id==="gann-gap"||id==="gann-bb"||id==="circuit-changes");var dl=dlist();$("dp-i").value=ASOF;$("dp-i").min=dl[0]||"";$("dp-i").max=LATEST;$("dp-note").textContent=ASOF!==LATEST?(D&&D.demo?"Demo data: every date shows different sample stocks.":"Past date. Gann and Gap Up come from that day’s saved snapshot; Max Return = best price since then vs that day’s close."):"Latest data.";
+ $("v-home").hidden=id!=="home";$("v-monitor").hidden=id!=="monitor";$("v-scr").hidden=!isS;$("v-gann").hidden=!isG;$("v-gap").hidden=id!=="gann-gap";$("v-bb").hidden=id!=="gann-bb";$("v-cc").hidden=id!=="circuit-changes";$("v-tools").hidden=id!=="tools-sector";$("v-setups").hidden=id!=="tools-setups";fcNotes();$("dpbar").hidden=!(isS||isG||id==="gann-gap"||id==="gann-bb"||id==="circuit-changes"||id==="tools-sector");var dl=dlist();$("dp-i").value=ASOF;$("dp-i").min=dl[0]||"";$("dp-i").max=LATEST;$("dp-note").textContent=ASOF!==LATEST?(D&&D.demo?"Demo data: every date shows different sample stocks.":"Past date. Gann and Gap Up come from that day’s saved snapshot; Max Return = best price since then vs that day’s close."):"Latest data.";
  if(isS){if(!SCI[sid]||!D)return;if(SCI[sid].def==="d"&&sid==="d4")per="d";else if(per==="d")per="w";q="";$("sc-q").value="";ind="";sg="";shown=40;scr(sid)}
- if(isG)gann(id==="gann-pt"?"pt":"369");if(id==="gann-gap")gapup();if(id==="gann-bb")bbup();if(id==="circuit-changes")circ();window.scrollTo(0,0)}
-function boot(){LATEST=D.updated;if(!ASOF||ASOF>LATEST)ASOF=LATEST;build();route()}
+ if(isG)gann(id==="gann-pt"?"pt":"369");if(id==="gann-gap")gapup();if(id==="gann-bb")bbup();if(id==="circuit-changes")circ();if(id==="tools-sector")tools();if(id==="tools-setups")setupsPage();window.scrollTo(0,0)}
+function boot(){LATEST=D.updated;if(!ASOF||ASOF>LATEST)ASOF=LATEST;build();route();loadSetups()}
 $("sc-q").addEventListener("input",function(e){q=e.target.value;shown=40;scr(cur.replace("-","_"))});
 $("sc-head").addEventListener("click",function(e){var th=e.target.closest("th");if(!th)return;var k=th.dataset.k;if(k===sk)sd=-sd;else{sk=k;sd=(k==="p"||k==="c"||k==="t")?-1:1}shown=40;scr(cur.replace("-","_"))});
 ["sc-c","sc-tn"].forEach(function(i){$(i).addEventListener("input",function(){shown=40;ind="";sg="";scr(cur.replace("-","_"))})});
@@ -641,6 +766,7 @@ $("sc-fr").onclick=function(){$("sc-c").value="";$("sc-tn").value="";shown=40;sc
 $("sc-more").onclick=function(){shown+=50;scr(cur.replace("-","_"))};
 $("g-q").addEventListener("input",function(){gann(gMode)});
 $("cc-q").addEventListener("input",function(){circ()});
+$("tl-q").addEventListener("input",function(){tools()});
 Array.prototype.forEach.call(document.querySelectorAll("#v-gann th[data-k]"),function(h){h.onclick=function(){if(gMk==="mx")gMd=-gMd;else{gMk="mx";gMd=-1}gann(gMode)}});
 ["gp-g","gp-t","gp-c","gp-q"].forEach(function(i){$(i).addEventListener("input",function(){gapup();build();Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===cur)})})});
 ["bb-t","bb-c","bb-q"].forEach(function(i){$(i).addEventListener("input",function(){bbup();build();Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===cur)})})});

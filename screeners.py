@@ -243,6 +243,12 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
             ld = first_seen[s]
         if ld and ld >= ipo_from:
             lst[s] = ld
+    # Tools > Sector Mapping: sector_map.csv ke saare Industry -> Subgroups (Claude ko same spelling dene ke liye)
+    grp_map = {}
+    for _ind, _sub, _ld in sectors.values():
+        if _ind and _sub:
+            grp_map.setdefault(_ind, set()).add(_sub)
+    grp_map = {k: sorted(v) for k, v in sorted(grp_map.items())}
     unmapped = sorted(s for s, v in sec.items() if not v[0])
     payload = {
         "updated": latest,
@@ -255,6 +261,7 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
         "fo": sorted(s for s in hist_syms if s.upper() in fo_set),
         "band": {s: band_map[s.upper()] for s in sorted(hist_syms) if s.upper() in band_map},
         "listing": lst,
+        "groups": grp_map,
         "unmapped": unmapped,
         "band_changes": load_band_changes(band_log_csv, (dt.date.fromisoformat(latest) - dt.timedelta(days=200)).isoformat()),  # [date, symbol, old %, new %]; 0 = no band
         "hits": hits,

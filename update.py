@@ -30,6 +30,7 @@ import requests
 from sa_logic import enrich
 import gann
 import screeners
+import setups
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data.json")
@@ -37,6 +38,7 @@ HIST = os.path.join(HERE, "history.csv.gz")
 SECTORS = os.path.join(HERE, "sector_map.csv")      # tumhari sector/industry file (manual update)
 SCREENER_OUT = os.path.join(HERE, "screener_data.json")
 GANN_OUT = os.path.join(HERE, "gann_data.json")
+SETUPS_OUT = os.path.join(HERE, "setups_data.json")
 LISTING = os.path.join(HERE, "listing_dates.csv")   # NSE EQUITY_L.csv se: symbol,listing_date
 LISTING_URL = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
 FO_CSV = os.path.join(HERE, "fo_list.csv")          # NSE F&O underlyings: symbol
@@ -305,6 +307,14 @@ def main():
         update_monitor(rows, hist, todo)
     else:
         print("No new trading days for MR20 monitor.")
+    # Setups to Focus: 6 scans ke roz ke counts (alag try: screeners / gann fail ho to bhi chale)
+    try:
+        setups.run(hist, SETUPS_OUT)
+    except Exception as e:  # noqa: BLE001
+        import traceback
+        traceback.print_exc()
+        print(f"::warning::setups_data.json update nahi hua: {e}")
+
     # screeners: har run me dobara (sector_map.csv badli ho to naya mapping bhi lag jaye)
     # Strong Sector / Gann me dikkat aaye to bhi market monitor (data.json) ka kaam na rukey
     try:
