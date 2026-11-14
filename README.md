@@ -103,3 +103,9 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
 - Upar **Max by High** (intraday high, default) / **Max by Close** (sirf closing) toggle hai. Header par click karke sort bhi kar sakte ho.
 - Latest date par column "—" dikhata hai (abhi koi "baad ka din" nahi hai).
 - Data `gann_history/px.json` se aata hai (gann.py roz banata hai, split/bonus adjusted, last 30 trading days). Workflow me koi badlav nahi chahiye (`git add -A gann_history` ise bhi commit karta hai).
+
+## FII/FPI count (fii.py)
+
+- Har stock ke symbol ke saath chhota badge: `FPI 3.45k ▲120` = FII/FPI investors ki sankhya (% nahi) aur pichhli quarter se change. Hover par poora number.
+- `fii.py` NSE ki quarterly shareholding filing (XBRL) se "Foreign Portfolio Investors" ka "No. of shareholders" nikalta hai, `fii_data.json` me rakhta hai. Ek run me 300 stocks (`FII_MAX_PER_RUN`), pehli baar poora bharne me ~8-10 din lagte hain.
+- Fail ho to site nahi rukti (`continue-on-error`). Badge na dikhe to `fii_debug.txt` dekho.
