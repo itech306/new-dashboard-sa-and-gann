@@ -37,9 +37,6 @@ jobs:
           restore-keys: |
             price-history-
       - run: python update.py
-      - name: FII/FPI count (quarterly data, failure site ko nahi rokta)
-        run: python fii.py
-        continue-on-error: true
       - name: Commit new data
         run: |
           git config user.name "sa-monitor-bot"
@@ -51,8 +48,6 @@ jobs:
           git add listing_dates.csv || true
           git add fo_list.csv || true
           git add price_band.csv || true
-        
-    
           git add price_band_all.csv || true
           git add band_changes.csv || true
           git diff --cached --quiet || git commit -m "EOD data update $(date -u +%F)"
