@@ -51,8 +51,8 @@ jobs:
           git add listing_dates.csv || true
           git add fo_list.csv || true
           git add price_band.csv || true
-          git add fii_data.json || true
-          git add fii_debug.txt || true
+        
+    
           git add price_band_all.csv || true
           git add band_changes.csv || true
           git diff --cached --quiet || git commit -m "EOD data update $(date -u +%F)"
