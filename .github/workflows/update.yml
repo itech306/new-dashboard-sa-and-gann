@@ -6,9 +6,10 @@ on:
     - cron: "30 13 * * *"
   workflow_dispatch: {}
   push:
-    # sector_map.csv me naya IPO add karte hi screener_data.json dobara ban jaata hai
+    # sector_map.csv / Market_Monitor.csv upload karte hi data dobara ban jaata hai
     paths:
       - "sector_map.csv"
+      - "Market_Monitor.csv"
 
 permissions:
   contents: write
