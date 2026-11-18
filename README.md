@@ -103,3 +103,14 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
 - Upar **Max by High** (intraday high, default) / **Max by Close** (sirf closing) toggle hai. Header par click karke sort bhi kar sakte ho.
 - Latest date par column "—" dikhata hai (abhi koi "baad ka din" nahi hai).
 - Data `gann_history/px.json` se aata hai (gann.py roz banata hai, split/bonus adjusted, last 30 trading days). Workflow me koi badlav nahi chahiye (`git add -A gann_history` ise bhi commit karta hai).
+
+
+## Market Monitor: Chartink CSV se (optional, recommended)
+
+`Market_Monitor.csv` (Chartink Market Monitor ka export: Date, Mr 20, U4, D4, W20) repo ke root mein rakho.
+- Is file mein jo dates hain (abhi 19 May 2025 se ab tak), unke MR20/U4/D4/W20 **seedhe Chartink wale** dikhte hain.
+- Usse purani history (19 May 2025 se pehle) jaisi hai waisi rehti hai.
+- Jis din ka data CSV mein nahi hai, uska number bhavcopy se calculate hota hai (fallback), to site kabhi ruki nahi rehti.
+- Roz nayi CSV ko usi naam se upload (replace) karo. Upload hote hi workflow chalega aur site update ho jaayegi.
+- CSV **market band hone ke baad** export karna. Market ke beech mein export karoge to aaj ki row intraday hogi, aur wo agle upload tak wahi rahegi.
+- Screeners, Gann aur Setups pe iska asar nahi hai, wo ab bhi NSE bhavcopy se banenge.
