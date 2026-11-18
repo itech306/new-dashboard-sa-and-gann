@@ -52,6 +52,7 @@ BAND_URLS = ["https://nsearchives.nseindia.com/content/equities/sec_list_{dmy}.c
 AVG_TURNOVER_CR = 10  # 10-day avg volume x close, in crore
 MIN_PRICE = 10
 METHOD = "chartink-v3"  # bump when the calculation changes (forces a recompute)
+MM_CSV = os.path.join(HERE, "Market_Monitor.csv")  # Chartink Market Monitor export: jo dates isme hon, wahi numbers site par dikhte hain
 BASE_END = "2026-10-09"  # last day that comes from the original sheet
 U4_PCT = 0.04
 WARMUP_DAYS = 1100  # calendar days (~750 trading days): EMA + weekly SMA(50) + cool-off + Gann swing anchors (strength 40, cycles 720)
@@ -306,7 +307,7 @@ def main():
     hist.to_csv(HIST, index=False, compression="gzip")
 
     todo = [x for x in sorted(hist["date"].unique()) if x > rows[-1]["date"]]
-    if todo or payload.get("method") != METHOD:
+    if todo or payload.get("method") != METHOD or _mm_changed(rows):
         update_monitor(rows, hist, todo)
     else:
         print("No new trading days for MR20 monitor.")
@@ -335,11 +336,51 @@ def main():
         print(f"::warning::gann_data.json nahi bana: {e}")
 
 
+def load_mm_csv():
+    """Chartink Market Monitor export (Date, Mr 20, U4, D4, W20) -> {iso_date: {MR20,U4,D4,W20}}.
+    Date format: 18th Nov'26. File na ho ya kharab ho to {} (tab bhavcopy wala calculation chalta hai)."""
+    import re
+    if not os.path.exists(MM_CSV):
+        return {}
+    try:
+        df = pd.read_csv(MM_CSV, encoding="utf-8-sig")
+        df.columns = [str(c).strip().lower().replace(" ", "") for c in df.columns]
+        out = {}
+        for _, r in df.iterrows():
+            m = re.match(r"\s*(\d{1,2})\w*\s+([A-Za-z]{3})'(\d{2})", str(r["date"]))
+            if not m:
+                continue
+            day = dt.datetime.strptime(f"{m.group(1)} {m.group(2)} 20{m.group(3)}", "%d %b %Y").date().isoformat()
+            out[day] = {"MR20": round(float(r["mr20"]), 2), "U4": int(r["u4"]), "D4": int(r["d4"]), "W20": int(r["w20"])}
+        print(f"Market_Monitor.csv: {len(out)} din ({min(out)} se {max(out)})")
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::Market_Monitor.csv padh nahi paya, calculation use hoga: {e}")
+        return {}
+
+
+def _mm_changed(rows):
+    """True agar Market_Monitor.csv ka koi din data.json se alag ho (ya data.json me ho hi na)."""
+    cur = {r["date"]: r for r in rows}
+    for day, v in load_mm_csv().items():
+        r = cur.get(day)
+        if r is None or any(r.get(k) != v[k] for k in ("MR20", "U4", "D4", "W20")):
+            return True
+    return False
+
+
 def update_monitor(rows, hist, todo):
     base = [{k: r[k] for k in ("date", "MR20", "U4", "D4", "W20", "universe")} for r in rows]
     for day in todo:
         base.append(compute_day(hist, day))
         print("added", base[-1])
+    # Chartink CSV jin dates ke liye hai, un dino ke numbers wahi (bhavcopy calculation ko override karta hai)
+    mm = load_mm_csv()
+    if mm:
+        by = {r["date"]: r for r in base}
+        for day, v in mm.items():
+            by[day] = {"date": day, **v, "universe": by.get(day, {}).get("universe", 0)}
+        base = [by[k] for k in sorted(by)]
     full = enrich(base)
     with open(DATA, "w") as f:
         json.dump({"updated": full[-1]["date"], "method": METHOD, "rows": full}, f, separators=(",", ":"))
