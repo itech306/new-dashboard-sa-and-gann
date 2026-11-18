@@ -2,8 +2,8 @@ name: Daily EOD update
 
 on:
   schedule:
-    # 13:30 UTC = 7:00 PM IST, Monday to Friday (bhavcopy is out by then)
-    - cron: "30 13 * * 1-5"
+    # 13:30 UTC = 7:00 PM IST, roz (Sat/Sun ke special sessions jaise Muhurat bhi pakadne ke liye)
+    - cron: "30 13 * * *"
   workflow_dispatch: {}
   push:
     # sector_map.csv me naya IPO add karte hi screener_data.json dobara ban jaata hai
