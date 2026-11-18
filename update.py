@@ -51,7 +51,7 @@ BAND_URLS = ["https://nsearchives.nseindia.com/content/equities/sec_list_{dmy}.c
 
 AVG_TURNOVER_CR = 10  # 10-day avg volume x close, in crore
 MIN_PRICE = 10
-METHOD = "chartink-v2"  # bump when the calculation changes (forces a recompute)
+METHOD = "chartink-v3"  # bump when the calculation changes (forces a recompute)
 BASE_END = "2026-10-09"  # last day that comes from the original sheet
 U4_PCT = 0.04
 WARMUP_DAYS = 1100  # calendar days (~750 trading days): EMA + weekly SMA(50) + cool-off + Gann swing anchors (strength 40, cycles 720)
@@ -286,12 +286,15 @@ def main():
     new_frames, fetched = [], []
     d = start
     while d <= today:
-        if d.weekday() < 5 and d.isoformat() not in have:
+        # weekend bhi try karo: Muhurat (Diwali) / budget jaise special Sat-Sun sessions ka bhavcopy aata hai.
+        # Band din par NSE 404 deta hai, to fetch_day None lautata hai (weekend par sleep nahi).
+        if d.isoformat() not in have:
             df = fetch_day(d, session)
             if df is not None:
                 new_frames.append(df)
                 fetched.append(d.isoformat())
-            time.sleep(1)
+            if d.weekday() < 5:
+                time.sleep(1)
         d += dt.timedelta(days=1)
     if new_frames:
         hist = pd.concat([hist] + new_frames, ignore_index=True)
