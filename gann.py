@@ -34,6 +34,7 @@ GROUP_SCREENERS = ("w5_20", "w5_13", "wk13")   # top 5 groups inhi screeners ke 
 TOP_N = 5
 LIQ_MIN = 3e7                                  # SMA(close * volume, 20) > 3 crore
 SNAP_DAYS = 30                                 # itne trading din ke snapshots (gann_history/) rakhte hain
+PX_DAYS = 80                                   # px.json: itne trading din ke prices (Max Return + orange/red/purple/yellow dots; 40-din ki window + screener hits ~100 calendar days)
 SNAP_DIR = "gann_history"
 GAP_MIN_PCT = 1.0                              # Gap Up list me itne se kam gap wale stocks nahi aate (page ka filter isse upar chalta hai)
 GAP_MIN_TURN_CR = 1.0                          # SMA(close * volume, 50) kam se kam itne crore
@@ -216,10 +217,11 @@ def build_snapshot(P, sec2, hits, asof):
     }
 
 
-def build_px(P, snap_dates, snap_dir, extra=()):
+def build_px(P, px_dates, snap_dates, snap_dir, extra=()):
     """gann_history/px.json: split/bonus-adjusted close + high of every stock that appears in a saved snapshot
-    (Gann stocks + Gap Up) for the snapshot days. Browser uses it for the "Max Return" column
-    (signal day ka close -> uske baad ka sabse ooncha high/close, aaj tak).
+    (Gann stocks + Gap Up + BB) or in a screener hit (`extra`), for the last PX_DAYS trading days.
+    Browser uses it for the "Max Return" column and for the orange / red / purple / yellow dots
+    (signal day ka close -> uske baad ka sabse ooncha high/close, 5 / 14 / 40 trading days ke andar).
 
     Format: {"v":1,"d":[dates oldest first],"s":{"SYM":[[close...],[high...]]}}  (rupees, null = no trade that day)
     """
@@ -237,15 +239,15 @@ def build_px(P, snap_dates, snap_dir, extra=()):
     ratio = (prev / close.shift(1)).fillna(1.0)
     ratio = ratio.where((ratio - 1).abs() > 0.003, 1.0)
     factor = ratio.iloc[::-1].cumprod().iloc[::-1].shift(-1).fillna(1.0)
-    aC, aH = (close * factor).reindex(snap_dates), (P["high"] * factor).reindex(snap_dates)
+    aC, aH = (close * factor).reindex(px_dates), (P["high"] * factor).reindex(px_dates)
     cell = lambda x: None if pd.isna(x) else round(float(x), 2)
     out = {}
     for s in sorted(syms):
         if s in aC.columns:
             out[s] = [[cell(x) for x in aC[s].values], [cell(x) for x in aH[s].values]]
     with open(os.path.join(snap_dir, "px.json"), "w") as f:
-        json.dump({"v": 1, "d": list(snap_dates), "s": out}, f, separators=(",", ":"))
-    print(f"px.json: {len(out)} stocks x {len(snap_dates)} days")
+        json.dump({"v": 1, "d": list(px_dates), "s": out}, f, separators=(",", ":"))
+    print(f"px.json: {len(out)} stocks x {len(px_dates)} days")
 
 
 def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
@@ -267,11 +269,11 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
             try:
                 with open(path) as f:
                     old = json.load(f)
-                has_bb = "bb" in old and list(old.get("strengths", [])) == list(STRENGTHS)   # nayi swing strength aayi to dobara banao
+                fresh = "bb" in old and old.get("strengths") == list(STRENGTHS)
             except Exception:
-                has_bb = False
-            if has_bb:
-                continue                                # purane din ka snapshot ek baar banta hai (BB nahi hai to dobara)
+                fresh = False
+            if fresh:
+                continue                                # purane din ka snapshot ek baar banta hai (BB nahi / swing list badli ho to dobara)
         out = build_snapshot(P, sec2, hits, d)
         with open(path, "w") as f:
             json.dump(out, f, separators=(",", ":"))
@@ -286,7 +288,7 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
     with open(out_path, "w") as f:
         json.dump(latest, f, separators=(",", ":"))
     try:                                                  # Max Return column ka data; daily job kabhi nahi rukta
-        build_px(P, snap_dates, snap_dir)
+        build_px(P, all_dates[-PX_DAYS:], snap_dates, snap_dir, extra={h[2] for h in hits})
     except Exception as e:
         print("px.json skipped:", e)
     try:                                                  # hover/expand chart data; never breaks the daily job

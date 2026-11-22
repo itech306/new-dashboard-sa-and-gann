@@ -102,13 +102,26 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
 - Neeche chhoti line: kis din peak bana aur **now** = aaj ka close us din ke close se kitna upar/neeche.
 - Upar **Max by High** (intraday high, default) / **Max by Close** (sirf closing) toggle hai. Header par click karke sort bhi kar sakte ho.
 - Latest date par column "—" dikhata hai (abhi koi "baad ka din" nahi hai).
-- Data `gann_history/px.json` se aata hai (gann.py roz banata hai, split/bonus adjusted, last 30 trading days). Workflow me koi badlav nahi chahiye (`git add -A gann_history` ise bhi commit karta hai).
+- Data `gann_history/px.json` se aata hai (gann.py roz banata hai, split/bonus adjusted, last 80 trading days, Gann/Gap Up/BB stocks + saare screener hits). Workflow me koi badlav nahi chahiye (`git add -A gann_history` ise bhi commit karta hai).
 
 
-## Orange / Red dot (sab pages)
+## Market Monitor: Chartink CSV se (optional, recommended)
 
-- Stock jis din kisi bhi list me aaya (Price-to-Time, 3-6-9, Gap Up, BB ya koi screener), us din ke close se agle 5 trading din me high 13%+ gaya to **orange dot**, 20%+ gaya to **red dot**. Dot IPO / F&O / circuit badges ke baad stock naam ke side me aata hai, hover par detail.
-- Gann / Gap Up / BB pages par ye purani date chunne par dikhta hai (jab move ho chuka ho), `gann_history/px.json` se. Latest date par abhi koi "baad ka din" nahi hota, isliye dot nahi.
-- Screener pages par har row apni hit-date se naapta hai. **Max by High / Close** toggle dots aur Max Return dono badalta hai.
-- Screener table me Max Return column bhi hai. `screeners.py` ab har hit ke saath 7 extra numbers likhta hai (`screener_data.json` hits[6..12]).
-- Swing 10 `gann.py` me `STRENGTHS` me add hai; pehle run par purane snapshots dobara ban jaate hain.
+`Market_Monitor.csv` (Chartink Market Monitor ka export: Date, Mr 20, U4, D4, W20) repo ke root mein rakho.
+- Is file mein jo dates hain (abhi 19 May 2025 se ab tak), unke MR20/U4/D4/W20 **seedhe Chartink wale** dikhte hain.
+- Usse purani history (19 May 2025 se pehle) jaisi hai waisi rehti hai.
+- Jis din ka data CSV mein nahi hai, uska number bhavcopy se calculate hota hai (fallback), to site kabhi ruki nahi rehti.
+- Roz nayi CSV ko usi naam se upload (replace) karo. Upload hote hi workflow chalega aur site update ho jaayegi.
+- CSV **market band hone ke baad** export karna. Market ke beech mein export karoge to aaj ki row intraday hogi, aur wo agle upload tak wahi rahegi.
+- Screeners, Gann aur Setups pe iska asar nahi hai, wo ab bhi NSE bhavcopy se banenge.
+
+
+## Swing 10, screener Max Return aur dots
+
+- **Swing 10** ab Gann pages par Swing 20/30/40 ke saath hai (`STRENGTHS` in `gann.py`). Purane snapshots jinme Swing 10 nahi tha, pehle run me apne aap dobara ban jaate hain.
+- **Max Return** ab Sector & Group Movers (screener) tables me bhi hai. Signal day = us row ki Date (hit ka din); us din ke close se aaj tak ka best price. Max by High / Max by Close toggle wahi hai. Header par click karke sort hota hai.
+- **Dots** stock ke naam ke side me (IPO / F&O / circuit badge ke baad). Signal day = row ki date (screeners me hit date, Gann/Gap Up/BB me selected date). Move us din ke close se agle **trading days** ke best price (High; Max by Close chuno to Close) par naapa jaata hai:
+  - orange = 13%+ in 5 days, red = 20%+ in 5 days (red aaye to orange nahi dikhta)
+  - purple = 50%+ in 14 days, yellow = 50%+ in 40 days (14 din me 50% ho to dono dikhte hain)
+  - dot tab dikhta hai jab aage ke prices aa chuke hon (aaj ki date par kuch nahi). Window poori na hui ho to ab tak ka move ginta hai.
+- Sab `gann_history/px.json` se (ab 80 trading days; file pehle se bhari hui hai, size thoda badhega). Standalone `gann.html` / `screeners.html` me ye nahi hai, sirf `index.html` me.
