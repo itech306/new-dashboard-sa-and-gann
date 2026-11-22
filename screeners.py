@@ -196,13 +196,54 @@ def compute_hits(hist: pd.DataFrame):
         p.index = idx
         res[sid] = (shown, p)
     # extra columns for the page filters: raw close and 50-day avg turnover (crore), same basis as Gap Up
-    extra = {"close": close, "t50cr": turn.rolling(50, min_periods=20).mean() / 1e7}
+    extra = {"close": close, "t50cr": turn.rolling(50, min_periods=20).mean() / 1e7, "aC": aC, "aH": aH}
     return res, dates, extra
+
+
+def forward_stats(day, sym, idx, dates, arrs):
+    """Hit ke baad ka move (hit-day adjusted close ke mukable), sab % me:
+    [5d max high, 5d max close, max high since, uski date, max close since, uski date, latest close].
+    "5d" = hit ke baad ke agle 5 trading din (jitne ab tak aaye). Koi agla din nahi to sab None."""
+    none = [None] * 7
+    a = arrs.get(sym)
+    if a is None:
+        a = arrs[sym] = (extra_close[sym].to_numpy(dtype=float), extra_high[sym].to_numpy(dtype=float))
+    c, h = a
+    i = idx.get(day)
+    if i is None or i + 1 >= len(c) or not np.isfinite(c[i]) or c[i] <= 0:
+        return none
+    base = c[i]
+    fc, fh = c[i + 1:], h[i + 1:]
+    okc, okh = np.isfinite(fc), np.isfinite(fh)
+    if not okc.any() and not okh.any():
+        return none
+    pct = lambda v: round(float((v / base - 1) * 100), 1)
+    out = [None] * 7
+    if okh.any():
+        w = fh[:5]
+        if np.isfinite(w).any():
+            out[0] = pct(np.nanmax(w))
+        k = int(np.nanargmax(np.where(okh, fh, -np.inf)))
+        out[2], out[3] = pct(fh[k]), dates[i + 1 + k]
+    if okc.any():
+        w = fc[:5]
+        if np.isfinite(w).any():
+            out[1] = pct(np.nanmax(w))
+        k = int(np.nanargmax(np.where(okc, fc, -np.inf)))
+        out[4], out[5] = pct(fc[k]), dates[i + 1 + k]
+        out[6] = pct(fc[np.flatnonzero(okc)[-1]])
+    return out
+
+
+extra_close = extra_high = None   # run() set karta hai (forward_stats ke liye)
 
 
 def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = None,
         fo_csv: str = None, band_csv: str = None, band_log_csv: str = None):
+    global extra_close, extra_high
     res, dates, extra = compute_hits(hist)
+    extra_close, extra_high = extra["aC"], extra["aH"]
+    fwd_idx, fwd_arrs = {d: i for i, d in enumerate(dates)}, {}
     sectors = load_sectors(sector_csv)
     listing = load_listing(listing_csv)
     fo_set, band_map = load_fo(fo_csv), load_band(band_csv)
@@ -220,9 +261,12 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
             day, sym = sub.index[i], sub.columns[j]
             v = pct.loc[day, sym]
             c, t = extra["close"].at[day, sym], extra["t50cr"].at[day, sym]
-            # [date, screener, symbol, move %, close on that day, 50d avg turnover in cr]
+            # [date, screener, symbol, move %, close on that day, 50d avg turnover in cr,
+            #  5d max high %, 5d max close %, max high % since, its date, max close % since, its date, latest close %]
+            # (last 7 = hit ke baad ka move, hit-day close ke mukable; Max Return column + orange/red dot ke liye)
             hits.append([day, sid, sym, None if pd.isna(v) else round(float(v), 1),
-                         None if pd.isna(c) else round(float(c), 2), None if pd.isna(t) else round(float(t), 1)])
+                         None if pd.isna(c) else round(float(c), 2), None if pd.isna(t) else round(float(t), 1)]
+                        + forward_stats(day, sym, fwd_idx, dates, fwd_arrs))
             used.add(sym)
     hits.sort(key=lambda x: (x[0], x[1], x[2]))
     sec = {}

@@ -61,7 +61,7 @@ Naya IPO aaye to page ke neeche "Sector file me nahi mile" panel me dikhega. "CS
 Pine script "price and time by sourav karhana" ke Module 1 (Price-to-Time) aur Module 2 (3-6-9 Time Cluster) ka screener. Data `gann_data.json` me hai, jo `update.py` roz banata hai.
 
 - **Universe:** Weekly ya Monthly window ke **top 5 Industry + top 5 Subgroup** (screeners: 20% in 5 Days, 13% in 5 Days, 13% in a Week ke hits se) ke saare stocks. Liquidity: `SMA(close x volume, 20) > 3 crore` aur `close > 20`. "SCREENER" badge un stocks par jinhone khud screener hit diya.
-- **Anchors:** har stock ka latest confirmed swing high (H) aur swing low (L), Pine ke `ta.pivothigh/pivotlow` jaisa. Strength 20 / 30 / 40 bars each side, page par select hota hai.
+- **Anchors:** har stock ka latest confirmed swing high (H) aur swing low (L), Pine ke `ta.pivothigh/pivotlow` jaisa. Strength 10 / 20 / 30 / 40 bars each side, page par select hota hai.
 - **Price-to-Time:** aaj ka bar = anchor bar + round(base x i), i = 1..9.
 - **3-6-9 Cluster:** aaj ka bar (ya Calendar-days mode me aaj ki date) = anchor + 30, 60, 90 ... 720. H aur L dono ki line ek din mile to Cluster. "1+ line" se sirf ek line wale bhi dikhte hain.
 - Sirf **aaj ka din** dekha jaata hai (na past, na future). Prices split/bonus adjusted.
@@ -105,12 +105,10 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
 - Data `gann_history/px.json` se aata hai (gann.py roz banata hai, split/bonus adjusted, last 30 trading days). Workflow me koi badlav nahi chahiye (`git add -A gann_history` ise bhi commit karta hai).
 
 
-## Market Monitor: Chartink CSV se (optional, recommended)
+## Orange / Red dot (sab pages)
 
-`Market_Monitor.csv` (Chartink Market Monitor ka export: Date, Mr 20, U4, D4, W20) repo ke root mein rakho.
-- Is file mein jo dates hain (abhi 19 May 2025 se ab tak), unke MR20/U4/D4/W20 **seedhe Chartink wale** dikhte hain.
-- Usse purani history (19 May 2025 se pehle) jaisi hai waisi rehti hai.
-- Jis din ka data CSV mein nahi hai, uska number bhavcopy se calculate hota hai (fallback), to site kabhi ruki nahi rehti.
-- Roz nayi CSV ko usi naam se upload (replace) karo. Upload hote hi workflow chalega aur site update ho jaayegi.
-- CSV **market band hone ke baad** export karna. Market ke beech mein export karoge to aaj ki row intraday hogi, aur wo agle upload tak wahi rahegi.
-- Screeners, Gann aur Setups pe iska asar nahi hai, wo ab bhi NSE bhavcopy se banenge.
+- Stock jis din kisi bhi list me aaya (Price-to-Time, 3-6-9, Gap Up, BB ya koi screener), us din ke close se agle 5 trading din me high 13%+ gaya to **orange dot**, 20%+ gaya to **red dot**. Dot IPO / F&O / circuit badges ke baad stock naam ke side me aata hai, hover par detail.
+- Gann / Gap Up / BB pages par ye purani date chunne par dikhta hai (jab move ho chuka ho), `gann_history/px.json` se. Latest date par abhi koi "baad ka din" nahi hota, isliye dot nahi.
+- Screener pages par har row apni hit-date se naapta hai. **Max by High / Close** toggle dots aur Max Return dono badalta hai.
+- Screener table me Max Return column bhi hai. `screeners.py` ab har hit ke saath 7 extra numbers likhta hai (`screener_data.json` hits[6..12]).
+- Swing 10 `gann.py` me `STRENGTHS` me add hai; pehle run par purane snapshots dobara ban jaate hain.

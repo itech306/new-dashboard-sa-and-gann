@@ -1,7 +1,7 @@
 """Gann screeners: Price-to-Time + 3-6-9 Time Cluster  ->  gann_data.json (read by gann.html).
 
 Pine script "price and time by sourav karhana" ke Module 1 aur Module 2 ka Python port.
-Anchors Pine ke ta.pivothigh / ta.pivotlow se aate hain (swing strength = bars each side: 20 / 30 / 40).
+Anchors Pine ke ta.pivothigh / ta.pivotlow se aate hain (swing strength = bars each side: 10 / 20 / 30 / 40).
 
 Kaise kaam karta hai
   1. Universe: weekly aur monthly window ke top 5 Industry + top 5 Subgroup (screeners 20% in 5 days,
@@ -28,7 +28,7 @@ import pandas as pd
 from screeners import MIN_PRICE, load_sectors
 import charts
 
-STRENGTHS = (20, 30, 40)
+STRENGTHS = (10, 20, 30, 40)
 CYCLES = (30, 60, 90, 120, 144, 180, 216, 240, 270, 288, 360, 432, 480, 540, 720)
 GROUP_SCREENERS = ("w5_20", "w5_13", "wk13")   # top 5 groups inhi screeners ke hits se bante hain
 TOP_N = 5
@@ -266,7 +266,8 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
         if d != all_dates[-1] and os.path.exists(path):
             try:
                 with open(path) as f:
-                    has_bb = "bb" in json.load(f)
+                    old = json.load(f)
+                has_bb = "bb" in old and list(old.get("strengths", [])) == list(STRENGTHS)   # nayi swing strength aayi to dobara banao
             except Exception:
                 has_bb = False
             if has_bb:
