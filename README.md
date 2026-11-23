@@ -140,3 +140,9 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
   - Futures ka alag data nahi hai, isliye F&O stocks par bhi cash OHLC / volume use hota hai. F&O list `fo_list.csv` ki aaj ki list hai (purane din ke liye bhi wahi).
   - Screenshot me "fails all ... in futures segment" wala hissa collapsed tha; maine use "stock F&O me nahi hai" maana hai.
 - **369 / P2T same day:** screener pages par naya toggle (All / Either / 369 / Price-to-Time). Sirf wahi hits dikhte hain jo us hit wale din 369 ya Price-to-Time me bhi the. Rows par `369` / `P2T` chhota tag bhi lagta hai. Data `gann_history/hist.json` se aata hai, isliye sirf last 30 trading days ke liye kaam karta hai. Ye toggle har screener par hai, sirf MB par nahi.
+
+
+## All swings aur dot-priority
+
+- **All swings:** Price-to-Time aur 3-6-9 pages par Swing 10/20/30/40 ke saath ab **All swings** button hai. Isme chaaron swings ke hits ek saath dikhte hain. Har chip par swing ka naam hota hai (jaise `S10 · H x3`, `S20 · L x2`) aur detail column me bhi. Jis stock me zyada swings ek saath hit karein wo upar aata hai (jab Dot stocks "Normal order" par ho).
+- **Dot stocks:** Screener pages aur Gann pages par naya **Dots first / Normal order** toggle. "Dots first" me dot wale stocks sabse upar aate hain, order: red (20%+ in 5d), orange (13%+ in 5d), purple (50%+ in 14d), yellow (50%+ in 40d). Baaki stocks apne purane order me neeche. Dot sirf purani date ke liye bante hain (jab aage ke prices aa chuke ho), isliye latest day par toggle chhupa rehta hai.
