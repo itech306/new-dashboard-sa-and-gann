@@ -29,6 +29,7 @@ from screeners import MIN_PRICE, load_sectors
 import charts
 
 STRENGTHS = (10, 20, 30, 40)
+FWD_DAYS = (1, 2)                              # "upcoming": 369 / Price-to-Time ka hit agle 1 ya 2 din (bars) me aane wala hai
 CYCLES = (30, 60, 90, 120, 144, 180, 216, 240, 270, 288, 360, 432, 480, 540, 720)
 GROUP_SCREENERS = ("w5_20", "w5_13", "wk13")   # top 5 groups inhi screeners ke hits se bante hain
 TOP_N = 5
@@ -102,7 +103,7 @@ def analyse(h, l, dates, strength):
     """Anchors + today's Gann hits for one stock and one strength. h, l: adjusted high/low arrays."""
     n = len(h)
     today = n - 1
-    out = {"a": {}, "pt": [], "cb": [], "cd": []}
+    out = {"a": {}, "pt": [], "cb": [], "cd": [], "up": {"pt": [], "cb": [], "cd": []}}
     today_date = dt.date.fromisoformat(dates[-1])
     for tag, arr, is_high in (("H", h, True), ("L", l, False)):
         ix = last_pivot(arr, strength, is_high)
@@ -114,12 +115,20 @@ def analyse(h, l, dates, strength):
         for i, add in price_to_time_bars(price):
             if ix + add == today:
                 out["pt"].append([tag, i, add])
+            for k in FWD_DAYS:                       # aane wale din: bar today+k (trading days), calendar me today+k din
+                if ix + add == today + k:
+                    out["up"]["pt"].append([tag, i, add, k])
         adate = dt.date.fromisoformat(dates[ix])
         for c in CYCLES:
             if ix + c == today:
                 out["cb"].append([tag, c])
             if adate + dt.timedelta(days=c) == today_date:
                 out["cd"].append([tag, c])
+            for k in FWD_DAYS:
+                if ix + c == today + k:
+                    out["up"]["cb"].append([tag, c, k])
+                if adate + dt.timedelta(days=c) == today_date + dt.timedelta(days=k):
+                    out["up"]["cd"].append([tag, c, k])
     return out
 
 
@@ -167,7 +176,7 @@ def build_snapshot(P, sec2, hits, asof):
                "r": None if pd.isna(adr.get(sym)) else round(float(adr[sym]), 2),
                "f": {p: sym.upper() in members[p] for p in ("w", "m")},
                "sh": {p: sym in shits[p] for p in ("w", "m")},
-               "a": {}, "pt": {}, "cb": {}, "cd": {}}
+               "a": {}, "pt": {}, "cb": {}, "cd": {}, "up": {}}
         any_hit = False
         d_s = list(hh.index)
         for L in STRENGTHS:
@@ -177,7 +186,14 @@ def build_snapshot(P, sec2, hits, asof):
                 if r[key]:
                     rec[key][str(L)] = r[key]
                     any_hit = True
-        if any_hit:
+            up = {k: v for k, v in r["up"].items() if v}
+            if up:
+                rec["up"][str(L)] = up
+        if any_hit or rec["up"]:
+            if not any_hit:
+                rec["u"] = 1                          # sirf upcoming hit hai, aaj koi hit nahi
+            if not rec["up"]:
+                del rec["up"]
             stocks.append(rec)
 
     # Gap Up: open vs NSE ki previous close, turnover = SMA(close * volume, 50)
@@ -208,7 +224,7 @@ def build_snapshot(P, sec2, hits, asof):
     bb.sort(key=lambda r: r["s"])
 
     return {
-        "updated": asof, "demo": False, "strengths": list(STRENGTHS), "cycles": list(CYCLES),
+        "updated": asof, "demo": False, "strengths": list(STRENGTHS), "cycles": list(CYCLES), "fwd": list(FWD_DAYS),
         "liq_min_cr": LIQ_MIN / 1e7, "min_price": MIN_PRICE, "group_screeners": list(GROUP_SCREENERS),
         "gap_min_pct": GAP_MIN_PCT, "gap_min_turn_cr": GAP_MIN_TURN_CR, "bb_min_turn_cr": BB_MIN_TURN_CR,
         "windows": windows, "groups": groups,
@@ -250,6 +266,37 @@ def build_px(P, px_dates, snap_dates, snap_dir, extra=()):
     print(f"px.json: {len(out)} stocks x {len(px_dates)} days")
 
 
+def build_hist(snap_dates, snap_dir):
+    """gann_history/hist.json: har stock ke liye saved snapshots (SNAP_DAYS) me kab kis Gann list me aaya.
+    {"v":1,"s":{"SYM":[[date, kind, detail], ...]}}   kind: pt | cb | cd | gap | bb  (sirf aaj ke hits, upcoming nahi)
+    Browser ka stock search iske saath screener hits (screener_data.json) jodkar poori history dikhata hai."""
+    out = {}
+    for d in snap_dates:
+        try:
+            with open(os.path.join(snap_dir, f"{d}.json")) as f:
+                snap = json.load(f)
+        except Exception:
+            continue
+        for r in snap.get("stocks", []):
+            for key in ("pt", "cb", "cd"):
+                parts = []
+                for L, hits in sorted(r.get(key, {}).items(), key=lambda kv: int(kv[0])):
+                    if key == "pt":
+                        txt = ", ".join(f"{h[0]} x{h[1]}" for h in hits)
+                    else:
+                        txt = ", ".join(f"{h[0]}+{h[1]}" for h in hits) + (" cluster" if len(hits) >= 2 else "")
+                    parts.append(f"S{L} {txt}")
+                if parts:
+                    out.setdefault(r["s"], []).append([d, key, " | ".join(parts)])
+        for r in snap.get("gap", []):
+            out.setdefault(r["s"], []).append([d, "gap", f"gap {(r['o'] / r['pc'] - 1) * 100:+.1f}%"])
+        for r in snap.get("bb", []):
+            out.setdefault(r["s"], []).append([d, "bb", ""])
+    with open(os.path.join(snap_dir, "hist.json"), "w") as f:
+        json.dump({"v": 1, "s": out}, f, separators=(",", ":"))
+    print(f"hist.json: {len(out)} stocks, {sum(len(v) for v in out.values())} entries")
+
+
 def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
     hist = hist.sort_values(["date", "symbol"])
     P = {c: hist.pivot(index="date", columns="symbol", values=c).sort_index()
@@ -269,7 +316,7 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
             try:
                 with open(path) as f:
                     old = json.load(f)
-                fresh = "bb" in old and old.get("strengths") == list(STRENGTHS)
+                fresh = "bb" in old and old.get("strengths") == list(STRENGTHS) and old.get("fwd") == list(FWD_DAYS)
             except Exception:
                 fresh = False
             if fresh:
@@ -281,12 +328,16 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
         if d == all_dates[-1]:
             latest = out
     for fn in os.listdir(snap_dir):                      # SNAP_DAYS se purane snapshots hata do
-        if fn.endswith(".json") and fn not in ("index.json", "chart_data.json", "px.json") and fn[:-5] not in set(snap_dates):
+        if fn.endswith(".json") and fn not in ("index.json", "chart_data.json", "px.json", "hist.json") and fn[:-5] not in set(snap_dates):
             os.remove(os.path.join(snap_dir, fn))
     with open(os.path.join(snap_dir, "index.json"), "w") as f:
         json.dump({"latest": all_dates[-1], "dates": snap_dates}, f, separators=(",", ":"))
     with open(out_path, "w") as f:
         json.dump(latest, f, separators=(",", ":"))
+    try:                                                  # stock search ki "kab kis list me aaya" history (30 din)
+        build_hist(snap_dates, snap_dir)
+    except Exception as e:
+        print("hist.json skipped:", e)
     try:                                                  # Max Return column ka data; daily job kabhi nahi rukta
         build_px(P, all_dates[-PX_DAYS:], snap_dates, snap_dir, extra={h[2] for h in hits})
     except Exception as e:

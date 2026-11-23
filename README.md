@@ -125,3 +125,8 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
   - purple = 50%+ in 14 days, yellow = 50%+ in 40 days (14 din me 50% ho to dono dikhte hain)
   - dot tab dikhta hai jab aage ke prices aa chuke hon (aaj ki date par kuch nahi). Window poori na hui ho to ab tak ka move ginta hai.
 - Sab `gann_history/px.json` se (ab 80 trading days; file pehle se bhari hui hai, size thoda badhega). Standalone `gann.html` / `screeners.html` me ye nahi hai, sirf `index.html` me.
+
+## Upcoming hits (+1 / +2 days) aur stock search history
+
+- **Upcoming:** Gann Price-to-Time aur 3-6-9 pages par naya toggle **Today / +1 day / +2 days / Today + next 2**. `gann.py` har stock ke liye dekhta hai ki hit agle 1 ya 2 trading din (bars) me aane wala hai (calendar-days mode me 1 ya 2 calendar din). Snapshot me `up` field aur top-level `fwd: [1,2]` aata hai; sirf upcoming wale stocks par `u: 1` lagta hai. Purane snapshots (bina `fwd`) pehle run me apne aap dobara ban jaate hain. Upcoming rows par dashed chip aur "+1d / +2d" tag hota hai.
+- **Stock search history:** header search me stock chuno (click ya Enter) to ek card khulta hai: kis date par kis list me aaya (screener hits ~100 din, 369 / Price-to-Time / Gap Up / BB last 30 trading days). Isme se "Open chart" se chart khulta hai. Gann/Gap/BB wali history `gann_history/hist.json` se aati hai (gann.py roz banata hai, sirf aaj ke hits, upcoming nahi).
