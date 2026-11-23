@@ -130,3 +130,13 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
 
 - **Upcoming:** Gann Price-to-Time aur 3-6-9 pages par naya toggle **Today / +1 day / +2 days / Today + next 2**. `gann.py` har stock ke liye dekhta hai ki hit agle 1 ya 2 trading din (bars) me aane wala hai (calendar-days mode me 1 ya 2 calendar din). Snapshot me `up` field aur top-level `fwd: [1,2]` aata hai; sirf upcoming wale stocks par `u: 1` lagta hai. Purane snapshots (bina `fwd`) pehle run me apne aap dobara ban jaate hain. Upcoming rows par dashed chip aur "+1d / +2d" tag hota hai.
 - **Stock search history:** header search me stock chuno (click ya Enter) to ek card khulta hai: kis date par kis list me aaya (screener hits ~100 din, 369 / Price-to-Time / Gap Up / BB last 30 trading days). Isme se "Open chart" se chart khulta hai. Gann/Gap/BB wali history `gann_history/hist.json` se aati hai (gann.py roz banata hai, sirf aaj ke hits, upcoming nahi).
+
+## MB screener aur "369 / P2T same day" filter
+
+- **MB (Momentum Burst)** naya screener hai, menu me **Screener** dropdown me BB ke neeche (Sector & Group Movers me nahi, Bridge me bhi nahi) (daily, koi cool-off nahi), `screeners.py` me. Chartink query ke hisaab se:
+  - Common: Range expansion = |Open-Close| / |1 candle ago Open-Close| x 100 >= 100; Close Range % = (Close-Low)/(High-Low) x 100 >= 80; 1 aur 2 din pehle % change <= 2; Close <= 5000; Close x Volume / 1 crore > 20.
+  - Cash group (stock F&O me nahi): aaj % change >= 4 aur Volume >= kal ka Volume.
+  - Futures group (stock F&O me): aaj % change >= 0.5.
+  - Futures ka alag data nahi hai, isliye F&O stocks par bhi cash OHLC / volume use hota hai. F&O list `fo_list.csv` ki aaj ki list hai (purane din ke liye bhi wahi).
+  - Screenshot me "fails all ... in futures segment" wala hissa collapsed tha; maine use "stock F&O me nahi hai" maana hai.
+- **369 / P2T same day:** screener pages par naya toggle (All / Either / 369 / Price-to-Time). Sirf wahi hits dikhte hain jo us hit wale din 369 ya Price-to-Time me bhi the. Rows par `369` / `P2T` chhota tag bhi lagta hai. Data `gann_history/hist.json` se aata hai, isliye sirf last 30 trading days ke liye kaam karta hai. Ye toggle har screener par hai, sirf MB par nahi.

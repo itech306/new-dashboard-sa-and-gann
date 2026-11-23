@@ -1,4 +1,4 @@
-"""Screener engine: 7 Chartink-style screeners + cool-off + sector join -> screener_data.json.
+"""Screener engine: 8 Chartink-style screeners + cool-off + sector join -> screener_data.json.
 
 Input  : per-stock daily history (date, symbol, open, high, low, close, prev_close, volume, turnover)
          from update.py (history.csv.gz) and sector_map.csv (your manual sector/industry file).
@@ -6,6 +6,7 @@ Output : screener_data.json, read by screeners.html.
 
 Screeners (conditions copied from the Chartink queries):
   d4      4% gain, daily           no cool-off (har din ki har hit dikhti hai)
+  mb      MB (Momentum Burst)      no cool-off; cash stocks 4%+ / F&O stocks 0.5%+ with range expansion (neeche dekho)
   m14     50% in 14 days           cool-off 14 trading days
   m2      50% in 2 months (40d)    cool-off 40 trading days
   w5_20   20% in 5 days            cool-off 5 trading days
@@ -33,6 +34,7 @@ KEEP_DAYS = 100         # screener_data.json me itne calendar days ke hits rakht
 
 SCREENERS = [
     {"id": "d4",    "name": "4% Gain (Daily)",  "short": "4% Daily",      "cooloff": 0,  "unit": "day",  "kind": "daily"},
+    {"id": "mb",    "name": "MB",              "short": "MB",            "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "w5_20", "name": "20% in 5 Days",    "short": "20% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "w5_13", "name": "13% in 5 Days",    "short": "13% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "m14",   "name": "50% in 14 Days",   "short": "50% in 14 Days", "cooloff": 14, "unit": "day",  "kind": "cool"},
@@ -135,11 +137,11 @@ def load_listing(path):
     return m
 
 
-def compute_hits(hist: pd.DataFrame):
+def compute_hits(hist: pd.DataFrame, fo_set=None):
     """Return {screener_id: (shown_bool_df, pct_df)} plus the list of dates."""
     hist = hist.sort_values(["date", "symbol"])
     P = {c: hist.pivot(index="date", columns="symbol", values=c).sort_index()
-         for c in ["open", "high", "low", "close", "prev_close", "turnover"]}
+         for c in ["open", "high", "low", "close", "prev_close", "turnover", "volume"]}
     close, prev, turn = P["close"], P["prev_close"], P["turnover"]
 
     # split / bonus adjustment (same method as update.py)
@@ -159,6 +161,26 @@ def compute_hits(hist: pd.DataFrame):
     pct = (close - prev) / prev * 100
     d4 = (close > prev * 1.04) & (close > MIN_PRICE) & (t50 > 3e7) & ~((pct >= 4.99) & (pct <= 5.01))
     res["d4"] = (cooloff(d4, 0), pct)
+
+    # 1b) MB (Momentum Burst), Chartink query, no cool-off. Dono groups ke liye common:
+    #     Range expansion = |Open-Close| / |1 candle ago Open-Close| * 100 >= 100   (aaj ki body >= kal ki body)
+    #     Close Range %   = (Close-Low) / (High-Low) * 100 >= 80
+    #     1 day ago % change <= 2  aur  2 days ago % change <= 2     (pichle 2 din shaant)
+    #     Close <= 5000  aur  Close * Volume / 1 crore > 20          (turnover 20 cr se zyada)
+    #   Cash group (stock F&O me nahi): Daily % change >= 4  aur  Volume >= kal ka Volume
+    #   Futures group (stock F&O me):   Daily % change >= 0.5
+    #   Futures segment ka data nahi hai, isliye F&O stocks par bhi cash OHLC / volume use hota hai.
+    vol = P["volume"]
+    body = (aO - aC).abs()
+    rexp = body / body.shift(1).replace(0, np.nan) * 100
+    crng = (aC - aL) / (aH - aL).replace(0, np.nan) * 100
+    mb_base = ((rexp >= 100) & (crng >= 80) & (pct.shift(1) <= 2) & (pct.shift(2) <= 2)
+               & (close <= 5000) & (close * vol / 1e7 > 20))
+    fo_cols = np.array([str(c).upper() in (fo_set or set()) for c in close.columns])
+    fo_mask = pd.DataFrame(np.broadcast_to(fo_cols, close.shape), index=close.index, columns=close.columns)
+    mb_cash = mb_base & (pct >= 4) & (vol >= vol.shift(1))
+    mb_fut = mb_base & (pct >= 0.5)
+    res["mb"] = (cooloff(mb_fut.where(fo_mask, mb_cash), 0), pct)
 
     # 2) 50% in 14 days: close / lowest low of last 14 days >= 1.5
     low14 = aL.rolling(14, min_periods=14).min()
@@ -202,10 +224,11 @@ def compute_hits(hist: pd.DataFrame):
 
 def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = None,
         fo_csv: str = None, band_csv: str = None, band_log_csv: str = None):
-    res, dates, extra = compute_hits(hist)
+    fo_set = load_fo(fo_csv)
+    res, dates, extra = compute_hits(hist, fo_set)
     sectors = load_sectors(sector_csv)
     listing = load_listing(listing_csv)
-    fo_set, band_map = load_fo(fo_csv), load_band(band_csv)
+    band_map = load_band(band_csv)
     hist_syms = set(hist["symbol"].unique())
     first_seen = hist.groupby("symbol")["date"].min()
     hist_start = dates[0]
