@@ -34,8 +34,8 @@ CYCLES = (30, 60, 90, 120, 144, 180, 216, 240, 270, 288, 360, 432, 480, 540, 720
 GROUP_SCREENERS = ("w5_20", "w5_13", "wk13")   # top 5 groups inhi screeners ke hits se bante hain
 TOP_N = 5
 LIQ_MIN = 3e7                                  # SMA(close * volume, 20) > 3 crore
-SNAP_DAYS = 30                                 # itne trading din ke snapshots (gann_history/) rakhte hain
-PX_DAYS = 80                                   # px.json: itne trading din ke prices (Max Return + orange/red/purple/yellow dots; 40-din ki window + screener hits ~100 calendar days)
+SNAP_DAYS = 100                                # itne trading din ke snapshots (gann_history/) rakhte hain
+PX_DAYS = 140                                  # px.json: itne trading din ke prices (Max Return + orange/red/purple/yellow dots; 40-din ki window + screener hits ~100 calendar days)
 SNAP_DIR = "gann_history"
 GAP_MIN_PCT = 1.0                              # Gap Up list me itne se kam gap wale stocks nahi aate (page ka filter isse upar chalta hai)
 GAP_MIN_TURN_CR = 1.0                          # SMA(close * volume, 50) kam se kam itne crore
@@ -230,6 +230,8 @@ def build_snapshot(P, sec2, hits, asof):
         "windows": windows, "groups": groups,
         "universe": {**{p: int(sum(1 for s in eligible if s.upper() in members[p])) for p in ("w", "m")}, "all": len(eligible)},
         "stocks": stocks, "gap": gap, "bb": bb,
+        "top": {p: sorted(members[p]) for p in ("w", "m")},   # top 5 group members (watchlist: keep only top-group stocks)
+        "el": eligible,                                     # liquid stocks scanned (watchlist CSV: found vs not in scan)
     }
 
 
@@ -316,7 +318,7 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
             try:
                 with open(path) as f:
                     old = json.load(f)
-                fresh = "bb" in old and old.get("strengths") == list(STRENGTHS) and old.get("fwd") == list(FWD_DAYS)
+                fresh = "bb" in old and "el" in old and "top" in old and old.get("strengths") == list(STRENGTHS) and old.get("fwd") == list(FWD_DAYS)
             except Exception:
                 fresh = False
             if fresh:
