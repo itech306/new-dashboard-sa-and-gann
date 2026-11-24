@@ -320,7 +320,7 @@ details.gd summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:16px}
  <footer class="mfoot">MR20 = % of stocks above their 20 EMA. U4/D4 = stocks up/down 4%+. W20 = stocks up 20%+ in 5 days. This is a market-breadth tool, not trading advice.<br>Demo design · sample of the last 60 days.</footer></div>
   <div class="dpbar" id="dpbar" hidden><span>Results as of</span><button class="more" id="dp-p" type="button" aria-label="Previous trading day">◀</button><input type="date" id="dp-i" aria-label="Pick a date"><button class="more" id="dp-n" type="button" aria-label="Next trading day">▶</button><button class="more" id="dp-l" type="button">Latest</button><span id="dp-note"></span><span class="dlg" id="dlg" title="Move after the signal day (the row's date), measured from that day's close. Dots only appear once later prices exist."><span><i class="dt o"></i>13%+ in 5d</span><span><i class="dt r"></i>20%+ in 5d</span><span><i class="dt p"></i>50%+ in 14d</span><span><i class="dt y"></i>50%+ in 40d</span></span></div>
   <div class="view" id="v-scr" hidden>
-    <div class="vh"><div><h1 id="sc-t"></h1><p id="sc-d"></p></div><div class="tools"><div class="seg" id="sc-per"></div><div class="seg" id="sc-ipo"></div><div class="seg" id="sc-mx"></div><div class="tgp"><span class="tl">F&amp;O</span><div class="seg" id="sc-fo"></div></div><div class="tgp"><span class="tl" title="Keep only hits that were also in 369 / Price-to-Time on the same day. Gann lists are saved for the last 100 trading days only.">369 / P2T same day</span><div class="seg" id="sc-gn"></div></div><div class="tgp"><span class="tl">2% / 5% circuit</span><div class="seg" id="sc-cb"></div></div><div class="tgp"><span class="tl" title="Stocks with a red / orange / purple / yellow dot are shown first (red, then orange, purple, yellow)">Dot stocks</span><div class="seg" id="sc-dp"></div></div></div></div>
+    <div class="vh"><div><h1 id="sc-t"></h1><p id="sc-d"></p></div><div class="tools"><div class="seg" id="sc-per"></div><div class="seg" id="sc-ipo"></div><div class="seg" id="sc-mx"></div><div class="tgp"><span class="tl">F&amp;O</span><div class="seg" id="sc-fo"></div></div><div class="tgp"><span class="tl" title="Keep only hits that were also in 369 / Price-to-Time on the same day. Gann lists are saved for the last 100 trading days only.">369 / P2T same day</span><div class="seg" id="sc-gn"></div></div><div class="tgp"><span class="tl">2% / 5% circuit</span><div class="seg" id="sc-cb"></div></div><div class="tgp"><span class="tl" title="Stocks with a red / orange / purple / yellow dot are shown first (red, then orange, purple, yellow)">Dot stocks</span><div class="seg" id="sc-dp"></div></div><div class="tgp"><span class="tl" title="Put hits that were also in 369 and/or Price-to-Time on the same day at the top (both first, then one). Gann lists are saved for the last 100 trading days only.">Priority</span><div class="seg" id="sc-gp"></div></div></div></div>
     <div class="gm"><section class="panel" id="gm-i"></section><section class="panel" id="gm-s"></section></div>
     <section class="panel"><div class="gpf" id="sc-flt"><label>Close &gt; ₹<input id="sc-c" type="number" step="1" min="0" placeholder="any"></label><label>Avg turnover (50-day) &gt;<input id="sc-tn" type="number" step="0.5" min="0" placeholder="any">cr</label><button class="more" id="sc-fr" type="button">Reset</button><span class="sub" id="sc-fn"></span></div>
     <div class="ph"><h2 id="sc-h"></h2><div class="tools"><input type="search" id="sc-q" placeholder="Search stock or sector"><button class="more" data-act="copy">📋 Copy all</button><button class="more" data-act="save">💾 Save group</button></div></div>
@@ -460,13 +460,15 @@ var POOL=["CRAFTSMAN|Capital Goods|Industrial Products & Manufacturing","KIRLOSE
 var SC=[
 {id:"d4",n:"4% Daily",d:"Stocks up 4%+ in a single day, with volume expansion.",k:"#34d3bb",ic:"4%",def:"d"},
 {id:"mb",n:"MB",d:"Momentum Burst: 4%+ day (F&O stocks 0.5%+) with range expansion, close in the top 20% of the day's range, and a quiet previous 2 days.",k:"#ff6fae",ic:"MB",def:"d"},
+{id:"pb",n:"PB",d:"PB: price above its 50 EMA on 30+ of the last 40 days, with a narrow-range (contracted) day and turnover above 20 cr.",k:"#4ad6a7",ic:"PB",def:"d"},
+{id:"sgb",n:"SG Babies",d:"SG Babies: up 80% from the 252-day low, or 19% in 126 days, or 5% in 65 days, with a narrow-range (contracted) day and turnover above 20 cr.",k:"#f0b429",ic:"SG",def:"d"},
 {id:"w5_20",n:"20% in 5 Days",d:"Up 20%+ within 5 days. 5 trading-day cool-off.",k:"#6aa2ff",ic:"20",def:"w"},
 {id:"w5_13",n:"13% in 5 Days",d:"Up 13%+ within 5 days. 5 trading-day cool-off.",k:"#34d3bb",ic:"13",def:"w"},
 {id:"m14",n:"50% in 14 Days",d:"Mega movers up 50%+ within 14 days.",k:"#f0bd3f",ic:"50",def:"w"},
 {id:"m2",n:"50% in 2 Months",d:"Long-trend leaders up 50%+ within 2 months.",k:"#c98af0",ic:"2M",def:"w"},
 {id:"wk13",n:"13% in a Week",d:"Up 13%+ over a completed week (checked on Friday).",k:"#3fdc9f",ic:"W13",def:"w"},
 {id:"wk20",n:"20% in a Week",d:"Up 20%+ over a completed week (checked on Friday).",k:"#ff8a5c",ic:"W20",def:"w"}];
-var SCI={};SC.forEach(function(s){SCI[s.id]=s});
+var NOGRP={mb:1,pb:1,sgb:1};var SCI={};SC.forEach(function(s){SCI[s.id]=s});
 var D=null,per="w",ind="",q="",shown=40,cur="monitor",gStr="30",gMode="pt",gAll=true;
 function $(i){return document.getElementById(i)}
 function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -477,7 +479,7 @@ function sample(){
  var hot=["Capital Goods","Chemicals","Metals & Mining"],sec={},hits=[];
  var r2=rng(21);POOL.forEach(function(p){var ld=r2()<.1?addDays(asof,-Math.floor(r2()*330)):"";sec[p.s]=r2()<.05?["","",ld||(r2()<.5?addDays(asof,-90):"")]:[p.i,p.g,ld]});
  function pick(){var p;do{p=POOL[Math.floor(R()*POOL.length)]}while(hot.indexOf(p.i)<0&&R()<.5);return p.s}
- var cfg={d4:[28,4,19],mb:[12,4,14],w5_20:[4,20,38],w5_13:[9,13,19.9],m14:[2,50,95],m2:[1.5,50,140],wk13:[14,13,25],wk20:[5,20,40]};
+ var cfg={d4:[28,4,19],mb:[12,4,14],pb:[10,.5,4],sgb:[8,.5,4],w5_20:[4,20,38],w5_13:[9,13,19.9],m14:[2,50,95],m2:[1.5,50,140],wk13:[14,13,25],wk20:[5,20,40]};
  SC.forEach(function(s){var c=cfg[s.id];dates.forEach(function(day){
   var wk=new Date(day+"T00:00:00Z").getUTCDay()===5;if((s.id==="wk13"||s.id==="wk20")&&!wk)return;
   var n=Math.round(c[0]*(.6+R()*.8));for(var k=0;k<n;k++)hits.push([day,s.id,pick(),Math.round((c[1]+Math.pow(R(),2)*(c[2]-c[1]))*10)/10,Math.round(20+Math.pow(R(),3)*2400),Math.round((1+Math.pow(R(),3)*120)*10)/10])})});
@@ -537,7 +539,7 @@ function scr(sid){
  var opts=isD?[["d","Today"],["w","Week"]]:[["w","Week"],["m","Month"]];if(!opts.some(function(o){return o[0]===per}))per=opts[0][0];
  segBtns($("sc-per"),opts,per,function(v){per=v;ind="";sg="";shown=40;scr(sid)});
  segBtns($("sc-ipo"),[["0","All stocks"],["1","IPO only (last 1 year)"]],ipoO?"1":"0",function(v){ipoO=v==="1";ind="";sg="";shown=40;scr(sid)});
- mxSeg("sc-mx",function(){scr(sid)},1);dotSeg("sc-dp",function(){scr(sid)});
+ mxSeg("sc-mx",function(){scr(sid)},1);dotSeg("sc-dp",function(){scr(sid)});gnSeg("sc-gp",function(){scr(sid)});
  segBtns($("sc-gn"),[["a","All"],["g","Either"],["c","369"],["p","Price-to-Time"]],gnM,function(v){gnM=v;ind="";sg="";shown=40;scr(sid)});
  segBtns($("sc-fo"),[["a","Show"],["x","Hide F&O"],["o","F&O only"]],foM,function(v){foM=v;ind="";sg="";shown=40;scr(sid)});
  segBtns($("sc-cb"),[["a","Show"],["x","Hide"],["o","Only"]],cbM,function(v){cbM=v;ind="";sg="";shown=40;scr(sid)});
@@ -552,13 +554,13 @@ function scr(sid){
  gm($("gm-s"),"Group movers: Subgroup",1,base,sg,function(v){sg=v;shown=40;scr(sid)});
  var ql=q.toLowerCase(),f=base.filter(function(h){var x=D.sectors[h[2]]||["","",""];return(!ind||gname(x,0)===ind)&&(!sg||gname(x,1)===sg)&&(!ql||(h[2]+" "+x[0]+" "+x[1]).toLowerCase().indexOf(ql)>=0)});
  var K={s:function(h){return h[2]},i:function(h){return gname(D.sectors[h[2]],0)},g:function(h){return gname(D.sectors[h[2]],1)},d:function(h){return h[0]},p:function(h){return h[3]},c:function(h){return h[4]==null?-1:h[4]},t:function(h){return h[5]==null?-1:h[5]},mx:function(h){return mxVal(h[2],h[0])}};
- f.sort(function(a,b){if(DOTF){var da=dotScore(a[2],a[0]),db=dotScore(b[2],b[0]);if(da!==db)return db-da}var x=K[sk](a),y=K[sk](b),c=typeof x==="number"?x-y:String(x).localeCompare(String(y));return c*sd||b[3]-a[3]||(a[2]<b[2]?-1:1)});
+ f.sort(function(a,b){if(GNF){var ga=gnScore(a[2],a[0]),gb=gnScore(b[2],b[0]);if(ga!==gb)return gb-ga}if(DOTF){var da=dotScore(a[2],a[0]),db=dotScore(b[2],b[0]);if(da!==db)return db-da}var x=K[sk](a),y=K[sk](b),c=typeof x==="number"?x-y:String(x).localeCompare(String(y));return c*sd||b[3]-a[3]||(a[2]<b[2]?-1:1)});
  Array.prototype.forEach.call(document.querySelectorAll("#sc-head th"),function(th){var on=th.dataset.k===sk;th.querySelector(".ar").textContent=on?(sd>0?" ▲":" ▼"):"";th.setAttribute("aria-sort",on?(sd>0?"ascending":"descending"):"none")});
  $("sc-h").textContent=f.length+" stocks"+(ind?" · "+ind:"")+(sg?" · "+sg:"");xRe();LIST=f.map(function(h){return h[2]});LN=s.n;var tb=$("sc-rows");tb.textContent="";
  f.slice(0,shown).forEach(function(h){var x=D.sectors[h[2]]||["","",""],tr=document.createElement("tr"),c=document.createElement("td");c.appendChild(tv(h[2]));
   if(isIpo(h[2])){var b=document.createElement("span");b.className="badge ipo";b.textContent="IPO";c.appendChild(b)}
   fcBadges(c,h[2],1,h[0]);gnBadges(c,h[2],h[0]);tr.appendChild(c);
-  tr.appendChild(td(gname(x,0)));tr.appendChild(td(gname(x,1),"sub"));tr.appendChild(td(fd(h[0]),"num"));tr.appendChild(td("+"+h[3].toFixed(1)+"%","r num pos"));
+  tr.appendChild(td(gname(x,0)));tr.appendChild(td(gname(x,1),"sub"));tr.appendChild(td(fd(h[0]),"num"));tr.appendChild(td((h[3]>=0?"+":"")+h[3].toFixed(1)+"%","r num "+(h[3]>=0?"pos":"neg")));
   tr.appendChild(td(h[4]==null?"—":"₹"+h[4].toLocaleString("en-IN"),"r num"));tr.appendChild(td(h[5]==null?"—":h[5].toFixed(1)+" cr","r num"));tr.appendChild(mxCell(h[2],h[0]));tb.appendChild(tr)});
  $("sc-more").hidden=f.length<=shown;$("sc-demo").hidden=!D.demo;$("sc-demo").textContent="Demo: these stocks are sample data. Your real screener_data.json will be used automatically once it is available."}
 /* Gann sample */
@@ -682,8 +684,10 @@ function dotBadges(c,sym,day){var m=dotsOf(sym,day);if(!m)return;var b=MXB==="h"
  if(m.d14!=null&&m.d14>=50)add("p","Purple dot: "+fp1(m.d14)+" within 14 trading days (50%+, "+b+")"+ref);
  if(m.d40!=null&&m.d40>=50)add("y","Yellow dot: "+fp1(m.d40)+" within 40 trading days (50%+, "+b+")"+ref)}
 /* Dot priority: red > orange > purple > yellow. Stocks with a dot go to the top when "Dots first" is on */
-var DOTF=true;
+var DOTF=true,GNF=false;
 function dotScore(sym,day){var m=dotsOf(sym,day);if(!m)return 0;var s=0;if(m.d5!=null&&m.d5>=20)s+=8;else if(m.d5!=null&&m.d5>=13)s+=4;if(m.d14!=null&&m.d14>=50)s+=2;if(m.d40!=null&&m.d40>=50)s+=1;return s}
+function gnScore(sym,day){var x=gnX(sym,day);return x?(x.c?1:0)+(x.pt?1:0):0}
+function gnSeg(id,fn){var h=$(id);if(!h)return;segBtns(h,[["0","Normal order"],["1","369 / P2T first"]],GNF?"1":"0",function(v){GNF=v==="1";fn()})}
 function dotSeg(id,fn){var h=$(id);h.hidden=!PX;if(h.hidden)return;segBtns(h,[["1","Dots first"],["0","Normal order"]],DOTF?"1":"0",function(v){DOTF=v==="1";fn()})}
 function mxSeg(id,fn,any){var h=$(id);h.hidden=any?!PX:!(PX&&ASOF<LATEST);if(h.hidden)return;segBtns(h,[["h","Max by High"],["c","Max by Close"]],MXB,function(v){MXB=v;fn()})}
 function mxArrows(sel,k,d){Array.prototype.forEach.call(document.querySelectorAll(sel),function(h){var on=h.dataset.k===k;h.textContent=h.textContent.replace(/ [\u2191\u2193]$/,"")+(on?(d<0?" \u2193":" \u2191"):"")})}
@@ -696,9 +700,12 @@ function fcNotes(){var msgs=[];if(D&&!D.demo){
 /* Tools: Sector Mapping helper (unmapped / IPO stocks -> text to paste into Claude) */
 var tlW="w",tlS="a",tlI="0";
 function tlGroups(){var g=D&&D.groups;if(!g){g={};Object.keys((D&&D.sectors)||{}).forEach(function(k){var x=D.sectors[k];if(x&&x[0]&&x[1]){(g[x[0]]=g[x[0]]||{})[x[1]]=1}});Object.keys(g).forEach(function(k){g[k]=Object.keys(g[k]).sort()})}return g}
+/* ETF / fund symbols: Sector Mapping list me nahi aate. Naya ETF aaye to naam yahi list me daal do (suffix BEES / ETF / IETF / CASE / LIQUID bhi apne aap hat jaate hain). */
+var FUND_SET={};["ALPHA","AONELIQUID","AUTOBEES","BANKIETF","BSLGOLDETF","BSLNIFTY","CASHIETF","EBBETF0430","EGOLD","ENERGY","ESILVER","FINIETF","GOLDAXIS","GOLDBEES","GROWWDEFNC","GROWWSLVR","HDFCLIQUID","HDFCNIFTY","HDFCSILVER","HDFCSML250","HEALTHIETF","HEALTHY","HNGSNGBEES","IT","ITBEES","ITETF","ITIETF","JUNIORBEES","LIQGRWBEES","LIQUID1","LIQUIDBETF","LOWVOLIETF","LTGILTCASE","MAFANG","MASPTOP50","METALIETF","MIDCAPETF","MOCAPITAL","MOMENTUM50","MOMMIDCAP","MON100","MONQ50","MOREALTY","MOSILVER","NEXT50","NIFTY1","NIFTYBEES","PHARMABEES","PSUBANK","SBISILVER","SILVER","SILVER1","SILVERADD","SILVERAG","SILVERAXIS","SILVERBEES","SILVERBETA","SILVERCASE","SILVERIETF","SML100CASE","TATAGOLD","TATSILV","TOP100CASE"].forEach(function(x){FUND_SET[x]=1});
+function isFund(s){s=String(s||"").toUpperCase();return!!FUND_SET[s]||/(BEES|ETF|IETF|CASE|LIQUID\d*)$/.test(s)}
 function tlRows(){var m={},a=ASOF||(D&&D.updated)||"";if(!D)return[];
  function mapped(sym){var x=D.sectors[sym];return!!(x&&x[0])}
- function add(sym,lab){if(!sym)return;var o=m[sym]||(m[sym]={s:sym,l:[]});if(o.l.indexOf(lab)<0)o.l.push(lab)}
+ function add(sym,lab){if(!sym||isFund(sym))return;var o=m[sym]||(m[sym]={s:sym,l:[]});if(o.l.indexOf(lab)<0)o.l.push(lab)}
  function gone(o){return o&&!Array.isArray(o)&&o.s&&!o.i}
  if(tlS!=="g"){var st=tlW==="a"?"0000":winStart(tlW);D.hits.forEach(function(h){if(h[0]<st||h[0]>a||mapped(h[2]))return;add(h[2],SCI[h[1]]?SCI[h[1]].n:h[1])});
   if(tlW==="a")(D.unmapped||[]).forEach(function(x){if(!mapped(x))add(x,"Screener (saved)")})}
@@ -849,12 +856,12 @@ function build(){var L=$("links");L.textContent="";
  function item(host,id,ic,n,k,badge){var a=document.createElement("a");a.className="item mi";a.href="#"+id;a.dataset.id=id;a.style.setProperty("--k",k);a.innerHTML='<span class="ic"></span><span class="t"></span><span class="b"></span>';a.children[0].textContent=ic;a.children[1].textContent=n;a.children[2].textContent=badge;host.appendChild(a)}
  var m=document.createElement("a");m.className="nl";m.href="#monitor";m.dataset.g="monitor";m.textContent="Market Monitor";L.appendChild(m);
  function dd(label,g){var d=document.createElement("div");d.className="dd";var b=document.createElement("button");b.className="nl";b.dataset.g=g;b.setAttribute("aria-haspopup","true");b.setAttribute("aria-expanded","false");b.appendChild(document.createTextNode(label+" "));var c=document.createElement("span");c.className="car";c.textContent="▾";b.appendChild(c);var mn=document.createElement("div");mn.className="menu";d.appendChild(b);d.appendChild(mn);L.appendChild(d);return mn}
- var s=dd("Sector & Group Movers","scr");SC.forEach(function(x){if(x.id==="mb")return;item(s,x.id.replace("_","-"),x.ic,x.n,x.k,inWin(x.id,x.def==="d"?"d":"w").length)});
+ var s=dd("Sector & Group Movers","scr");SC.forEach(function(x){if(NOGRP[x.id])return;item(s,x.id.replace("_","-"),x.ic,x.n,x.k,inWin(x.id,x.def==="d"?"d":"w").length)});
  if(!G&&!GR)G=gsample();var g=dd("Screener","gann");
- item(g,"gann-pt","P·T","Price-to-Time","#6aa2ff",gc("pt"));item(g,"gann-369","369","3-6-9 Time Cluster","#c98af0",gc("cb"));item(g,"gann-both","P·T+369","369 + Price-to-Time","#4ad6a7",gcB());item(g,"gann-gap","GAP","Gap Up","#f0b429",gpRows("").length);item(g,"gann-bb","BB","BB","#4ad6a7",bbRows("").length);item(g,"mb","MB","MB","#ff6fae",inWin("mb","d").length);
+ item(g,"gann-pt","P·T","Price-to-Time","#6aa2ff",gc("pt"));item(g,"gann-369","369","3-6-9 Time Cluster","#c98af0",gc("cb"));item(g,"gann-both","P·T+369","369 + Price-to-Time","#4ad6a7",gcB());item(g,"gann-gap","GAP","Gap Up","#f0b429",gpRows("").length);item(g,"gann-bb","BB","BB","#4ad6a7",bbRows("").length);item(g,"mb","MB","MB","#ff6fae",inWin("mb","d").length);item(g,"pb","PB","PB","#4ad6a7",inWin("pb","d").length);item(g,"sgb","SG","SG Babies","#f0b429",inWin("sgb","d").length);
  var t=dd("Tools","tools");item(t,"tools-sector","MAP","Sector Mapping","#8f9bff",tlRows().length);item(t,"tools-setups","SET","Setups to Focus","#f0b429",stTodayCount());item(t,"circuit-changes","%","Circuit Changes","#ff8a5c",ccRows().length)}
 function route(){var id=location.hash.slice(1)||"home";cur=id;document.body.classList.remove("open");
- Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===id)});var grp=id==="home"?"":id==="monitor"?"monitor":(id==="tools-sector"||id==="tools-setups"||id==="circuit-changes")?"tools":((id.indexOf("gann")===0||id==="mb")?"gann":"scr");Array.prototype.forEach.call(document.querySelectorAll("[data-g]"),function(a){a.classList.toggle("on",a.dataset.g===grp)});
+ Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===id)});var grp=id==="home"?"":id==="monitor"?"monitor":(id==="tools-sector"||id==="tools-setups"||id==="circuit-changes")?"tools":((id.indexOf("gann")===0||NOGRP[id])?"gann":"scr");Array.prototype.forEach.call(document.querySelectorAll("[data-g]"),function(a){a.classList.toggle("on",a.dataset.g===grp)});
  var sid=id.replace("-","_"),isS=!!SCI[sid],isG=id==="gann-pt"||id==="gann-369"||id==="gann-both";
  $("v-home").hidden=id!=="home";$("v-monitor").hidden=id!=="monitor";$("v-scr").hidden=!isS;$("v-gann").hidden=!isG;$("v-gap").hidden=id!=="gann-gap";$("v-bb").hidden=id!=="gann-bb";$("v-cc").hidden=id!=="circuit-changes";$("v-tools").hidden=id!=="tools-sector";$("v-setups").hidden=id!=="tools-setups";fcNotes();$("dpbar").hidden=!(isS||isG||id==="gann-gap"||id==="gann-bb"||id==="circuit-changes"||id==="tools-sector");$("dlg").hidden=!(isS||isG||id==="gann-gap"||id==="gann-bb");var dl=dlist();$("dp-i").value=ASOF;$("dp-i").min=dl[0]||"";$("dp-i").max=LATEST;$("dp-note").textContent=ASOF!==LATEST?(D&&D.demo?"Demo data: every date shows different sample stocks.":"Past date. Gann and Gap Up come from that day’s saved snapshot; Max Return = best price since then vs that day’s close."):"Latest data.";
  if(isS){if(!SCI[sid]||!D)return;if(SCI[sid].def==="d")per="d";else if(per==="d")per="w";q="";$("sc-q").value="";ind="";sg="";shown=40;scr(sid)}
@@ -903,7 +910,7 @@ function renderGP(){var h=$("gp-list");h.textContent="";var S=groups();if(!S.len
   s.g.forEach(function(a,gi){var c=document.createElement("div");c.className="gcard";c.innerHTML="<b></b><p></p>";c.children[0].textContent="Group "+(gi+1)+" ("+a.length+" tickers)";
    c.children[1].textContent=a.map(function(y){return"NSE:"+y}).join(", ");var b=document.createElement("button");b.className="cg";var L="Copy Group "+(gi+1);b.textContent=L;
    b.onclick=function(){copyText(fmt(a),"Group "+(gi+1)+" copied");b.textContent="Copied ✓";setTimeout(function(){b.textContent=L},1300)};c.appendChild(b);w.appendChild(c)});h.appendChild(w)})}
-function bridge(){var m={};SC.forEach(function(s){if(s.id==="mb")return;inWin(s.id,s.def==="d"?"d":"w").forEach(function(h){var o=m[h[2]]||(m[h[2]]={s:h[2],n:0,p:0});o.n++;o.p=Math.max(o.p,h[3])})});
+function bridge(){var m={};SC.forEach(function(s){if(NOGRP[s.id])return;inWin(s.id,s.def==="d"?"d":"w").forEach(function(h){var o=m[h[2]]||(m[h[2]]={s:h[2],n:0,p:0});o.n++;o.p=Math.max(o.p,h[3])})});
  var a=(Object.keys(m).map(function(k){return m[k]}).sort(function(x,y){return y.n-x.n||y.p-x.p}).map(function(o){return o.s}));
  var c=addChunks("Bridge",a);done(a,c,true)}
 Array.prototype.forEach.call(document.querySelectorAll("[data-act]"),function(b){b.onclick=function(){var a=LIST.slice();if(!a.length)return toast("No tickers to copy");var c=addChunks(LN+" · "+(ASOF||D.updated),a);done(a,c,b.dataset.act==="copy")}});

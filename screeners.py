@@ -7,6 +7,8 @@ Output : screener_data.json, read by screeners.html.
 Screeners (conditions copied from the Chartink queries):
   d4      4% gain, daily           no cool-off (har din ki har hit dikhti hai)
   mb      MB (Momentum Burst)      no cool-off; cash stocks 4%+ / F&O stocks 0.5%+ with range expansion (neeche dekho)
+  pb      PB                       no cool-off; Chartink query (EMA50 trend + range contraction + liquidity)
+  sgb     SG Babies                no cool-off; Chartink query (1.8x/1.19x/1.05x trend + range contraction + liquidity)
   m14     50% in 14 days           cool-off 14 trading days
   m2      50% in 2 months (40d)    cool-off 40 trading days
   w5_20   20% in 5 days            cool-off 5 trading days
@@ -35,6 +37,8 @@ KEEP_DAYS = 100         # screener_data.json me itne calendar days ke hits rakht
 SCREENERS = [
     {"id": "d4",    "name": "4% Gain (Daily)",  "short": "4% Daily",      "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "mb",    "name": "MB",              "short": "MB",            "cooloff": 0,  "unit": "day",  "kind": "daily"},
+    {"id": "pb",    "name": "PB",             "short": "PB",            "cooloff": 0,  "unit": "day",  "kind": "daily"},
+    {"id": "sgb",   "name": "SG Babies",      "short": "SG Babies",     "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "w5_20", "name": "20% in 5 Days",    "short": "20% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "w5_13", "name": "13% in 5 Days",    "short": "13% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "m14",   "name": "50% in 14 Days",   "short": "50% in 14 Days", "cooloff": 14, "unit": "day",  "kind": "cool"},
@@ -181,6 +185,34 @@ def compute_hits(hist: pd.DataFrame, fo_set=None):
     mb_cash = mb_base & (pct >= 4) & (vol >= vol.shift(1))
     mb_fut = mb_base & (pct >= 0.5)
     res["mb"] = (cooloff(mb_fut.where(fo_mask, mb_cash), 0), pct)
+
+
+    # 1c) PB + SG Babies (Chartink queries, daily, no cool-off). R = High - Low (split adjusted).
+    #     Chartink Min(n, x)/Max(n, x) = pichle n candles (aaj samet).
+    #     Dono ka liquidity: Close*Volume/1 crore > 20  YA  SMA(Close*Volume, 20) > 20 crore.
+    R = aH - aL
+    mn15, mx15 = R.rolling(15, min_periods=15).min(), R.rolling(15, min_periods=15).max()
+    mn5, mx5r = R.rolling(5, min_periods=5).min(), R.rolling(5, min_periods=5).max()
+    cv = close * vol
+    liq_pbs = (cv / 1e7 > 20) | (cv.rolling(20, min_periods=20).mean() > 2e8)
+    # PB: Count(40, Close > EMA(Close,50)) >= 30
+    #     (R - Min15(R)) * 5 < Max15(R) - Min5(R)            [aaj]
+    #     YA  (upar wali aaj ki shart  AUR  (R1 - Min15(R)1) * 5 < Max5(R)1 - Min15(R)1  [kal])
+    ema50 = aC.ewm(span=50, adjust=False, min_periods=50).mean()
+    cnt40 = (aC > ema50).rolling(40, min_periods=40).sum()
+    pb_a = (R - mn15) * 5 < (mx15 - mn5)
+    pb_b = (R.shift(1) - mn15.shift(1)) * 5 < (mx5r.shift(1) - mn15.shift(1))
+    pb = (cnt40 >= 30) & (pb_a | (pb_a & pb_b)) & liq_pbs
+    res["pb"] = (cooloff(pb, 0), pct)
+    # SG Babies: Close >= 1.8*Min(252,Low)  YA  Close >= 1.19*Close[126 din pehle]  YA  Close >= 1.05*Close[65 din pehle]
+    #     (R - Min15(R)) * 5 < Max15(R) - Min15(R)           [aaj]
+    #     YA  (upar wali aaj ki shart  AUR  yahi shart kal ke liye)
+    trend = ((aC >= 1.8 * aL.rolling(252, min_periods=252).min()) | (aC >= 1.19 * aC.shift(126))
+             | (aC >= 1.05 * aC.shift(65)))
+    sg_a = (R - mn15) * 5 < (mx15 - mn15)
+    sg_b = sg_a.shift(1, fill_value=False).astype(bool)
+    sgb = trend & (sg_a | (sg_a & sg_b)) & liq_pbs
+    res["sgb"] = (cooloff(sgb, 0), pct)
 
     # 2) 50% in 14 days: close / lowest low of last 14 days >= 1.5
     low14 = aL.rolling(14, min_periods=14).min()

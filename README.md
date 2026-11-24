@@ -146,3 +146,22 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
 
 - **All swings:** Price-to-Time aur 3-6-9 pages par Swing 10/20/30/40 ke saath ab **All swings** button hai. Isme chaaron swings ke hits ek saath dikhte hain. Har chip par swing ka naam hota hai (jaise `S10 · H x3`, `S20 · L x2`) aur detail column me bhi. Jis stock me zyada swings ek saath hit karein wo upar aata hai (jab Dot stocks "Normal order" par ho).
 - **Dot stocks:** Screener pages aur Gann pages par naya **Dots first / Normal order** toggle. "Dots first" me dot wale stocks sabse upar aate hain, order: red (20%+ in 5d), orange (13%+ in 5d), purple (50%+ in 14d), yellow (50%+ in 40d). Baaki stocks apne purane order me neeche. Dot sirf purani date ke liye bante hain (jab aage ke prices aa chuke ho), isliye latest day par toggle chhupa rehta hai.
+
+## My stock list (CSV) + 369 + Price-to-Time together
+
+- Screener menu now has a third page: **369 + Price-to-Time** (both lists in one row; "Both only" shows stocks that have both hits, they are listed first).
+- On the 369, Price-to-Time and combined pages, **My stock list** lets you upload a CSV (only symbols, no OHLCV; see `my_stocks_sample.csv`) or paste symbols. Turn on **Show only my list**. The Top 5 groups / All stocks toggle still works on top of it. The list is saved in the browser (localStorage).
+- A report under the list says how many symbols were found, how many have a hit, and which are not in the scan (below the 3 cr turnover / price 20 liquidity filter, too new, or misspelled).
+- `gann.py`: `SNAP_DAYS = 100`, `PX_DAYS = 140`. Snapshots now also store `el` (the liquid stocks scanned). The first run after this update rebuilds the snapshots (about 70 new days), so it takes longer; the workflow timeout is raised to 180 minutes.
+- **Keep only top 5 group stocks:** in My stock list choose Weekly or Monthly basis and click "Keep only top 5 group stocks". Every stock of your list outside the top 5 groups is removed (names are shown), and "Download CSV" saves the cleaned list. Snapshots now also store `top` (top group members for w and m).
+- **Sector Mapping list me ETF / fund nahi aate:** `index.html` me `FUND_SET` + `isFund()` (suffix BEES / ETF / IETF / CASE / LIQUID). Naya ETF aaye to uska naam `FUND_SET` list me add kar do.
+
+
+## PB, SG Babies aur "369 / P2T first" priority
+
+- **PB** aur **SG Babies** naye daily screeners hain (MB / BB ke saath Screener menu me), `screeners.py` me, Chartink queries ke exact criteria se. Koi cool-off nahi. Dono me liquidity: Close x Volume > 20 cr YA SMA20(Close x Volume) > 20 cr. R = High - Low.
+  - **PB:** Count(40, Close > EMA50) >= 30, aur (R - Min15(R)) x 5 < Max15(R) - Min5(R) (kal ki shart ke saath OR/AND wala tree bhi waisa hi).
+  - **SG Babies:** Close >= 1.8 x Min(252, Low) YA Close >= 1.19 x Close[126 din pehle] YA Close >= 1.05 x Close[65 din pehle], aur (R - Min15(R)) x 5 < Max15(R) - Min15(R).
+  - Chartink ke screenshot me "A OR (A AND B)" aata hai, jo logically sirf A ke barabar hai; code me wahi tree rakha hai.
+  - Move % column me us din ka % change dikhta hai (negative bhi ho sakta hai).
+- **Priority (369 / P2T first):** har screener page par Dots first ke bagal me naya toggle. On karne par jo hits usi din 369 aur Price-to-Time dono me the wo sabse upar, phir koi ek me wale, phir baaki. Ye Dots first se pehle lagta hai. Gann history sirf last 100 trading days ki hai.
