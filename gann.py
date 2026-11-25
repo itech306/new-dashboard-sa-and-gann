@@ -37,6 +37,7 @@ LIQ_MIN = 3e7                                  # SMA(close * volume, 20) > 3 cro
 SNAP_DAYS = 100                                # itne trading din ke snapshots (gann_history/) rakhte hain
 PX_DAYS = 140                                  # px.json: itne trading din ke prices (Max Return + orange/red/purple/yellow dots; 40-din ki window + screener hits ~100 calendar days)
 SNAP_DIR = "gann_history"
+SNAP_VER = 2                                   # snapshot format version (2 = p1/p2 prior-2-day % change added); badalne par purane snapshots dobara bante hain
 GAP_MIN_PCT = 1.0                              # Gap Up list me itne se kam gap wale stocks nahi aate (page ka filter isse upar chalta hai)
 GAP_MIN_TURN_CR = 1.0                          # SMA(close * volume, 50) kam se kam itne crore
 GAP_MIN_PRICE = 10
@@ -150,6 +151,11 @@ def build_snapshot(P, sec2, hits, asof):
     # ADR % = (SMA(High / Low, 20) - 1) * 100   (Chartink: Daily Sma(Daily High / Daily Low, 20) - 1) * 100)
     adr = ((Ps["high"] / Ps["low"]).rolling(20, min_periods=20).mean().iloc[-1] - 1) * 100
     liquid = (cv20 > LIQ_MIN) & (last_close > MIN_PRICE)
+    # pichle 2 din ka % change (signal din se pehle): p1 = kal, p2 = parso (split/bonus adjusted close)
+    rets = aC.pct_change(fill_method=None) * 100
+    p1s = rets.iloc[-2] if len(rets) >= 2 else None
+    p2s = rets.iloc[-3] if len(rets) >= 3 else None
+    pr = lambda sr, s: None if sr is None or pd.isna(sr.get(s)) else round(float(sr[s]), 2)
 
     windows, groups, members, shits = {}, {}, {}, {}
     for p in ("w", "m"):
@@ -174,6 +180,7 @@ def build_snapshot(P, sec2, hits, asof):
         rec = {"s": sym, "i": ind, "g": sub, "c": round(float(last_close[sym]), 2),
                "v": round(float(cv20[sym]) / 1e7, 1),
                "r": None if pd.isna(adr.get(sym)) else round(float(adr[sym]), 2),
+               "p1": pr(p1s, sym), "p2": pr(p2s, sym),
                "f": {p: sym.upper() in members[p] for p in ("w", "m")},
                "sh": {p: sym in shits[p] for p in ("w", "m")},
                "a": {}, "pt": {}, "cb": {}, "cd": {}, "up": {}}
@@ -224,7 +231,7 @@ def build_snapshot(P, sec2, hits, asof):
     bb.sort(key=lambda r: r["s"])
 
     return {
-        "updated": asof, "demo": False, "strengths": list(STRENGTHS), "cycles": list(CYCLES), "fwd": list(FWD_DAYS),
+        "pv": SNAP_VER, "updated": asof, "demo": False, "strengths": list(STRENGTHS), "cycles": list(CYCLES), "fwd": list(FWD_DAYS),
         "liq_min_cr": LIQ_MIN / 1e7, "min_price": MIN_PRICE, "group_screeners": list(GROUP_SCREENERS),
         "gap_min_pct": GAP_MIN_PCT, "gap_min_turn_cr": GAP_MIN_TURN_CR, "bb_min_turn_cr": BB_MIN_TURN_CR,
         "windows": windows, "groups": groups,
@@ -318,7 +325,7 @@ def run(hist: pd.DataFrame, payload: dict, sector_csv: str, out_path: str):
             try:
                 with open(path) as f:
                     old = json.load(f)
-                fresh = "bb" in old and "el" in old and "top" in old and old.get("strengths") == list(STRENGTHS) and old.get("fwd") == list(FWD_DAYS)
+                fresh = "bb" in old and "el" in old and "top" in old and old.get("pv") == SNAP_VER and old.get("strengths") == list(STRENGTHS) and old.get("fwd") == list(FWD_DAYS)
             except Exception:
                 fresh = False
             if fresh:
