@@ -165,3 +165,14 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
   - Chartink ke screenshot me "A OR (A AND B)" aata hai, jo logically sirf A ke barabar hai; code me wahi tree rakha hai.
   - Move % column me us din ka % change dikhta hai (negative bhi ho sakta hai).
 - **Priority (369 / P2T first):** har screener page par Dots first ke bagal me naya toggle. On karne par jo hits usi din 369 aur Price-to-Time dono me the wo sabse upar, phir koi ek me wale, phir baaki. Ye Dots first se pehle lagta hai. Gann history sirf last 100 trading days ki hai.
+
+
+## RB (Repeat Burst) screener
+
+- Naya daily screener **RB**, Screener menu me SG Babies ke neeche (Sector & Group Movers me nahi). Koi cool-off nahi; date picker se purani date ki list bhi dikhti hai.
+- Default: pichle ~2 saal (500 trading days) me **6 trading din me 25%+** ki rally kam se kam **3 baar** (2 rallies ke beech kam se kam 10 trading din), aur liquidity: Close x Volume > 20 cr YA SMA20(Close x Volume) > 20 cr.
+- **Page par filter buttons:** Burst 20 / 25 / 30 / 40 / 50 %+, Min bursts 3+ / 4+ / 5+, Liquidity 10 / 20 / 50 cr. Default 25%, 3+, 20 cr. Har % option ki alag ginti `screener_data.json` me aati hai, isliye buttons turant kaam karte hain.
+- Row me narangi tag: kitni bursts aur last burst kab thi (`3 BURSTS · LAST 15 JUL`). "Last burst" column us last rally ka 6-din ka %. Is column par sort karne par pehle bursts ki ginti, phir last burst ka size.
+- Rally ginti split / bonus adjusted close par hoti hai (original Colab script raw close leti thi).
+- Constants `screeners.py` ke upar: `RB_MIN_RETURN`, `RB_THRESHOLDS`, `RB_WINDOW`, `RB_MIN_BURSTS`, `RB_GAP_DAYS`, `RB_LOOKBACK`, `RB_LIQ_CR`, `RB_LIQ_BASE_CR` (json me 10 cr se upar ke stocks aate hain).
+- Workflow me koi badlav nahi. `screener_data.json` thodi badi hogi (RB ke hits har din ke liye jude hain).
