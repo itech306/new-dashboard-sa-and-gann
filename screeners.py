@@ -8,6 +8,7 @@ Screeners (conditions copied from the Chartink queries):
   d4      4% gain, daily           no cool-off (har din ki har hit dikhti hai)
   mb      MB (Momentum Burst)      no cool-off; cash stocks 4%+ / F&O stocks 0.5%+ with range expansion (neeche dekho)
   pb      PB                       no cool-off; Chartink query (EMA50 trend + range contraction + liquidity)
+  rb      RB (Repeat Burst)        no cool-off; pichle 2 saal me 6 din me 25%+ (20-50% page par chun sakte ho) ki rally kam se kam 3 baar, liquidity 20 cr+ (10 / 20 / 50 cr)
   sgb     SG Babies                no cool-off; Chartink query (1.8x/1.19x/1.05x trend + range contraction + liquidity)
   m14     50% in 14 days           cool-off 14 trading days
   m2      50% in 2 months (40d)    cool-off 40 trading days
@@ -34,11 +35,22 @@ IPO_DAYS = 365          # itne din ke andar listed stock "IPO" maana jaata hai
 IPO_RELAX_SMA = False   # True: SMA50 ke liye sirf 10 din ka data bhi chalega (naye IPO ke liye)
 KEEP_DAYS = 100         # screener_data.json me itne calendar days ke hits rakhte hain
 
+# RB (Repeat Burst): jin stocks ne pichle 2 saal me baar-baar 6 din me 25%+ ki rally di
+RB_MIN_RETURN = 25      # default filter: 6 trading din me kam se kam 25% (close / close 6 din pehle - 1)
+RB_THRESHOLDS = (20, 25, 30, 40, 50)   # page par chunne ke options (%); har ek ke liye alag ginti json me jaati hai
+RB_WINDOW = 6           # rally ka window (trading days)
+RB_MIN_BURSTS = 3       # kam se kam itni alag-alag rallies
+RB_GAP_DAYS = 10        # 2 rallies ke beech kam se kam itne trading din
+RB_LOOKBACK = 500       # ~2 saal (trading days)
+RB_LIQ_CR = 20          # default filter: Close x Volume > 20 cr YA SMA20(Close x Volume) > 20 cr (PB / SG Babies jaisa)
+RB_LIQ_BASE_CR = 10     # json me itni liquidity wale stocks aate hain, page par 10 / 20 / 50 cr chun sakte ho
+
 SCREENERS = [
     {"id": "d4",    "name": "4% Gain (Daily)",  "short": "4% Daily",      "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "mb",    "name": "MB",              "short": "MB",            "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "pb",    "name": "PB",             "short": "PB",            "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "sgb",   "name": "SG Babies",      "short": "SG Babies",     "cooloff": 0,  "unit": "day",  "kind": "daily"},
+    {"id": "rb",    "name": "RB (Repeat Burst)", "short": "RB",          "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "w5_20", "name": "20% in 5 Days",    "short": "20% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "w5_13", "name": "13% in 5 Days",    "short": "13% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "m14",   "name": "50% in 14 Days",   "short": "50% in 14 Days", "cooloff": 14, "unit": "day",  "kind": "cool"},
@@ -214,6 +226,31 @@ def compute_hits(hist: pd.DataFrame, fo_set=None):
     sgb = trend & (sg_a | (sg_a & sg_b)) & liq_pbs
     res["sgb"] = (cooloff(sgb, 0), pct)
 
+    # 1d) RB (Repeat Burst), daily snapshot, no cool-off. Stock us din dikhta hai jab:
+    #     - pichle RB_LOOKBACK (~2 saal) trading dino me kam se kam RB_MIN_BURSTS alag rallies ho chuki hon
+    #       (rally = close >= RB_WINDOW din pehle ke close ka 1.25x; 2 rallies ke beech >= RB_GAP_DAYS din)
+    #     - liquidity: Close x Volume > 20 cr YA SMA20(Close x Volume) > 20 cr  (PB / SG Babies wali)
+    #     Rally ginti split / bonus adjusted close par hoti hai. Greedy chain poori history par ek baar chalti hai
+    #     (cooloff() wahi karta hai: gap ke andar wali rally ginti nahi hoti), phir har din ke liye pichle 500 din ki ginti.
+    #     Move column = last rally ka 6-din ka return %; rb_info me (bursts, last burst date) page ke tag ke liye.
+    #     Page par 3 filter hain (Min burst %, Min bursts, Liquidity cr); har % option ki alag ginti json me jaati hai.
+    rb_ret = aC / aC.shift(RB_WINDOW) - 1
+    rb_L = pd.DataFrame(np.fmax(cv.values, cv.rolling(20, min_periods=20).mean().values),
+                        index=cv.index, columns=cv.columns) / 1e7     # max(aaj ka turnover, 20-din avg), crore
+    rb_cnt, rb_last, rb_lret = {}, {}, {}
+    for t in RB_THRESHOLDS:
+        b = cooloff(rb_ret >= t / 100, RB_GAP_DAYS - 1)
+        rb_cnt[t] = b.astype(int).rolling(RB_LOOKBACK, min_periods=1).sum()
+        pos = np.where(b.values, np.arange(len(b))[:, None], np.nan)
+        rb_last[t] = pd.DataFrame(pos, index=b.index, columns=b.columns).ffill()   # index of the latest burst
+        rb_lret[t] = rb_ret.where(b).ffill() * 100                                 # its 6-day return %
+    any_ok = pd.DataFrame(False, index=cv.index, columns=cv.columns)
+    for t in RB_THRESHOLDS:
+        any_ok |= rb_cnt[t] >= RB_MIN_BURSTS
+    rb = any_ok & (rb_L >= RB_LIQ_BASE_CR)
+    res["rb"] = (cooloff(rb, 0), rb_lret[RB_MIN_RETURN])
+    rb_info = {"cnt": rb_cnt, "last": rb_last, "ret": rb_lret, "L": rb_L, "dates": list(close.index)}
+
     # 2) 50% in 14 days: close / lowest low of last 14 days >= 1.5
     low14 = aL.rolling(14, min_periods=14).min()
     m14 = (aC / low14 >= 1.5) & liquid
@@ -250,7 +287,7 @@ def compute_hits(hist: pd.DataFrame, fo_set=None):
         p.index = idx
         res[sid] = (shown, p)
     # extra columns for the page filters: raw close and 50-day avg turnover (crore), same basis as Gap Up
-    extra = {"close": close, "t50cr": turn.rolling(50, min_periods=20).mean() / 1e7}
+    extra = {"close": close, "t50cr": turn.rolling(50, min_periods=20).mean() / 1e7, "rb": rb_info}
     return res, dates, extra
 
 
@@ -275,9 +312,21 @@ def run(hist: pd.DataFrame, sector_csv: str, out_path: str, listing_csv: str = N
             day, sym = sub.index[i], sub.columns[j]
             v = pct.loc[day, sym]
             c, t = extra["close"].at[day, sym], extra["t50cr"].at[day, sym]
-            # [date, screener, symbol, move %, close on that day, 50d avg turnover in cr]
-            hits.append([day, sid, sym, None if pd.isna(v) else round(float(v), 1),
-                         None if pd.isna(c) else round(float(c), 2), None if pd.isna(t) else round(float(t), 1)])
+            # [date, screener, symbol, move %, close on that day, 50d avg turnover in cr]  (rb: + bursts[], last burst date[], last burst %[], liquidity cr)
+            row = [day, sid, sym, None if pd.isna(v) else round(float(v), 1),
+                   None if pd.isna(c) else round(float(c), 2), None if pd.isna(t) else round(float(t), 1)]
+            if sid == "rb":
+                # + [bursts per RB_THRESHOLDS, last burst date per threshold, last burst % per threshold, liquidity cr]
+                rbi, cn, ld, lr = extra["rb"], [], [], []
+                for t in RB_THRESHOLDS:
+                    li, rv = rbi["last"][t].at[day, sym], rbi["ret"][t].at[day, sym]
+                    cn.append(int(rbi["cnt"][t].at[day, sym]))
+                    ld.append(rbi["dates"][int(li)] if not pd.isna(li) and cn[-1] else None)
+                    lr.append(round(float(rv), 1) if not pd.isna(rv) and cn[-1] else None)
+                if row[3] is None:
+                    row[3] = next((x for x in lr if x is not None), 0)
+                row += [cn, ld, lr, round(float(rbi["L"].at[day, sym]), 1)]
+            hits.append(row)
             used.add(sym)
     hits.sort(key=lambda x: (x[0], x[1], x[2]))
     sec = {}
