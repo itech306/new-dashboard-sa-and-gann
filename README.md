@@ -176,3 +176,13 @@ Chart sirf un stocks ka banta hai jo us din screeners / Gann / Gap Up lists me h
 - Rally ginti split / bonus adjusted close par hoti hai (original Colab script raw close leti thi).
 - Constants `screeners.py` ke upar: `RB_MIN_RETURN`, `RB_THRESHOLDS`, `RB_WINDOW`, `RB_MIN_BURSTS`, `RB_GAP_DAYS`, `RB_LOOKBACK`, `RB_LIQ_CR`, `RB_LIQ_BASE_CR` (json me 10 cr se upar ke stocks aate hain).
 - Workflow me koi badlav nahi. `screener_data.json` thodi badi hogi (RB ke hits har din ke liye jude hain).
+
+## Breakout Retest A / B
+
+- **Screener** dropdown me RB ke neeche: **Breakout Retest A** aur **Breakout Retest B** (daily, koi cool-off nahi), `screeners.py` me (ids `bra`, `brb`).
+- Common: Daily RSI(14) < 65, Weekly RSI(14) > 60, Monthly RSI(14) > 60 (chalta hua week/month bhi ginta hai, Chartink jaisa), liquidity (Close x Volume > 10 cr YA SMA20 > 10 cr), range contraction (PB jaisi, R = High - Low).
+- **A** me extra: pichle 3 se 7 din me kisi ek din RSI(14) > 70 aur Close 320-din ka closing high.
+- **B** = A bina breakout wali shart ke (isliye A, B ka subset hai).
+- Chartink query me "7 days ago" wali line me `Max(320, 3 days ago Close)` likha hai, wahi literal rakha hai. Typo theek karna ho to `screeners.py` me `BR_A_FIX_7D = True`.
+
+Breakout Retest A/B pages ab 369 jaise chalte hain: **Top 5 groups / All stocks / IPO only (last 1 year)**, **Weekly / Monthly** window (top 5 Industry + Subgroup, wahi 20% in 5 Days / 13% in 5 Days / 13% in a Week hits se jaise gann.py me), Dots first, Max by High / Close, F&O aur 2%/5% circuit filters. Stocks wo dikhte hain jo selected date par A / B me aaye.

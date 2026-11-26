@@ -463,13 +463,15 @@ var SC=[
 {id:"pb",n:"PB",d:"PB: price above its 50 EMA on 30+ of the last 40 days, with a narrow-range (contracted) day and turnover above 20 cr.",k:"#4ad6a7",ic:"PB",def:"d"},
 {id:"sgb",n:"SG Babies",d:"SG Babies: up 80% from the 252-day low, or 19% in 126 days, or 5% in 65 days, with a narrow-range (contracted) day and turnover above 20 cr.",k:"#f0b429",ic:"SG",def:"d"},
 {id:"rb",n:"RB (Repeat Burst)",d:"Repeat Burst: stocks that rallied 25%+ within 6 trading days at least 3 separate times in the last 2 years (rallies at least 10 trading days apart), with turnover above 20 cr (today or 20-day average). Change the burst size (20-50%), the minimum number of bursts (3-5) and the liquidity (10 / 20 / 50 cr) with the buttons.",k:"#ff8a5c",ic:"RB",def:"d"},
+{id:"bra",n:"Breakout Retest A",d:"Breakout Retest A: daily RSI(14) below 65 with weekly and monthly RSI(14) above 60, a narrow-range (contracted) day, turnover above 10 cr, and within the last 3 to 7 days a day with RSI above 70 that closed at a 320-day closing high.",k:"#5bd0ff",ic:"BA",def:"d"},
+{id:"brb",n:"Breakout Retest B",d:"Breakout Retest B: daily RSI(14) below 65 with weekly and monthly RSI(14) above 60, a narrow-range (contracted) day and turnover above 10 cr (same as A, without the recent-breakout condition).",k:"#b48cff",ic:"BR",def:"d"},
 {id:"w5_20",n:"20% in 5 Days",d:"Up 20%+ within 5 days. 5 trading-day cool-off.",k:"#6aa2ff",ic:"20",def:"w"},
 {id:"w5_13",n:"13% in 5 Days",d:"Up 13%+ within 5 days. 5 trading-day cool-off.",k:"#34d3bb",ic:"13",def:"w"},
 {id:"m14",n:"50% in 14 Days",d:"Mega movers up 50%+ within 14 days.",k:"#f0bd3f",ic:"50",def:"w"},
 {id:"m2",n:"50% in 2 Months",d:"Long-trend leaders up 50%+ within 2 months.",k:"#c98af0",ic:"2M",def:"w"},
 {id:"wk13",n:"13% in a Week",d:"Up 13%+ over a completed week (checked on Friday).",k:"#3fdc9f",ic:"W13",def:"w"},
 {id:"wk20",n:"20% in a Week",d:"Up 20%+ over a completed week (checked on Friday).",k:"#ff8a5c",ic:"W20",def:"w"}];
-var NOGRP={mb:1,pb:1,sgb:1,rb:1};
+var NOGRP={mb:1,pb:1,sgb:1,rb:1,bra:1,brb:1};
 var RTS=[20,25,30,40,50],RBT=25,RBN=3,RBL=20;
 function rbF(h){if(!h[6]||!h[6].length)return h;var i=RTS.indexOf(RBT),n=h[6][i];if(n<RBN||h[9]<RBL||h[8][i]==null)return null;return[h[0],h[1],h[2],h[8][i],h[4],h[5],n,h[7][i]]}
 function rbSegs(sid){var on=sid==="rb";$("rb-f").hidden=!on;if(!on)return;var go=function(){ind="";sg="";shown=40;scr(sid)};
@@ -486,7 +488,7 @@ function sample(){
  var hot=["Capital Goods","Chemicals","Metals & Mining"],sec={},hits=[];
  var r2=rng(21);POOL.forEach(function(p){var ld=r2()<.1?addDays(asof,-Math.floor(r2()*330)):"";sec[p.s]=r2()<.05?["","",ld||(r2()<.5?addDays(asof,-90):"")]:[p.i,p.g,ld]});
  function pick(){var p;do{p=POOL[Math.floor(R()*POOL.length)]}while(hot.indexOf(p.i)<0&&R()<.5);return p.s}
- var cfg={d4:[28,4,19],mb:[12,4,14],pb:[10,.5,4],sgb:[8,.5,4],rb:[10,25,60],w5_20:[4,20,38],w5_13:[9,13,19.9],m14:[2,50,95],m2:[1.5,50,140],wk13:[14,13,25],wk20:[5,20,40]};
+ var cfg={d4:[28,4,19],mb:[12,4,14],pb:[10,.5,4],sgb:[8,.5,4],rb:[10,25,60],bra:[6,.5,4],brb:[10,.5,4],w5_20:[4,20,38],w5_13:[9,13,19.9],m14:[2,50,95],m2:[1.5,50,140],wk13:[14,13,25],wk20:[5,20,40]};
  SC.forEach(function(s){var c=cfg[s.id];dates.forEach(function(day){
   var wk=new Date(day+"T00:00:00Z").getUTCDay()===5;if((s.id==="wk13"||s.id==="wk20")&&!wk)return;
   var n=Math.round(c[0]*(.6+R()*.8));for(var k=0;k<n;k++)hits.push([day,s.id,pick(),Math.round((c[1]+Math.pow(R(),2)*(c[2]-c[1]))*10)/10,Math.round(20+Math.pow(R(),3)*2400),Math.round((1+Math.pow(R(),3)*120)*10)/10])})});
@@ -539,20 +541,27 @@ function gm(host,title,k,list,sel,setf){host.textContent="";var c={};
   r.onclick=function(){setf(sel===o.n?"":o.n)};gl.appendChild(r)});
  if(!a.length){gl.className="sub";gl.textContent="No stocks in this window."}
  var lg=document.createElement("div");lg.className="legend";lg.innerHTML='<span><i class="k1"></i>Older stocks</span><span><i class="k2"></i>IPO (last 1 year)</span>';host.appendChild(lg)}
+var BRS={mb:1,pb:1,sgb:1,rb:1,bra:1,brb:1},GRPSC=["w5_20","w5_13","wk13"];
+function gStart(p){var a=ASOF||D.updated;if(p==="w")return addDays(a,-6);var d=new Date(a+"T00:00:00Z"),y=d.getUTCFullYear(),m=d.getUTCMonth()-1,dd=d.getUTCDate();if(m<0){m=11;y--}var last=new Date(Date.UTC(y,m+1,0)).getUTCDate();return new Date(Date.UTC(y,m,Math.min(dd,last))).toISOString().slice(0,10)}
+function topGrp(p){var st=gStart(p),a=ASOF||D.updated,seen={},ci={},cs={};D.hits.forEach(function(h){if(GRPSC.indexOf(h[1])<0||h[0]<st||h[0]>a||seen[h[2]])return;seen[h[2]]=1;var x=D.sectors[h[2]]||["",""];if(x[0])ci[x[0]]=(ci[x[0]]||0)+1;if(x[1])cs[x[1]]=(cs[x[1]]||0)+1});
+ var rk=function(c){return Object.keys(c).sort(function(u,v){return c[v]-c[u]||(u<v?-1:1)}).slice(0,5)};var i=rk(ci),g=rk(cs),I={},S={};i.forEach(function(k){I[k]=1});g.forEach(function(k){S[k]=1});return{i:I,s:S,il:i,sl:g}}
 function scr(sid){
  if(!HS&&!HSW){HSW=1;loadHS().then(function(){HSW=0;var c=cur.replace("-","_");if(SCI[c])scr(c)})}
  if(PXS!==2&&!PXW){PXW=1;loadPX(function(){PXW=0;var c=cur.replace("-","_");if(SCI[c])scr(c)})}
  var s=SCI[sid],isD=s.def==="d";$("sc-t").textContent=s.n;$("sc-d").textContent=s.d;
  var mh=document.querySelector('#sc-head th[data-k="p"]');if(mh){mh.firstChild.nodeValue=sid==="rb"?"Last burst":"Move";mh.title=sid==="rb"?"Sort by number of bursts, then last burst size":"Sort highest / lowest first"}
- var opts=isD?[["d","Today"],["w","Week"]]:[["w","Week"],["m","Month"]];if(!opts.some(function(o){return o[0]===per}))per=opts[0][0];
+ var isBR=!!BRS[sid];
+ if(isBR){per="d";$("sc-per").hidden=!gTop;segBtns($("sc-per"),[["w","Weekly"],["m","Monthly"]],gWin,function(v){gWin=v;ind="";sg="";shown=40;build();route()});topSeg("sc-ipo");ipoO=gIpo}
+ else{$("sc-per").hidden=false;var opts=isD?[["d","Today"],["w","Week"]]:[["w","Week"],["m","Month"]];if(!opts.some(function(o){return o[0]===per}))per=opts[0][0];
  segBtns($("sc-per"),opts,per,function(v){per=v;ind="";sg="";shown=40;scr(sid)});
- segBtns($("sc-ipo"),[["0","All stocks"],["1","IPO only (last 1 year)"]],ipoO?"1":"0",function(v){ipoO=v==="1";ind="";sg="";shown=40;scr(sid)});
+ segBtns($("sc-ipo"),[["0","All stocks"],["1","IPO only (last 1 year)"]],ipoO?"1":"0",function(v){ipoO=v==="1";ind="";sg="";shown=40;scr(sid)})}
  mxSeg("sc-mx",function(){scr(sid)},1);dotSeg("sc-dp",function(){scr(sid)});gnSeg("sc-gp",function(){scr(sid)});
  segBtns($("sc-gn"),[["a","All"],["g","Either"],["c","369"],["p","Price-to-Time"]],gnM,function(v){gnM=v;ind="";sg="";shown=40;scr(sid)});
  segBtns($("sc-fo"),[["a","Show"],["x","Hide F&O"],["o","F&O only"]],foM,function(v){foM=v;ind="";sg="";shown=40;scr(sid)});
  segBtns($("sc-cb"),[["a","Show"],["x","Hide"],["o","Only"]],cbM,function(v){cbM=v;ind="";sg="";shown=40;scr(sid)});
  rbSegs(sid);
  var base=inWin(sid,per,gnM==="a"?null:function(h){var x=gnX(h[2],h[0]);return!!x&&(gnM==="g"||(gnM==="c"?!!x.c:!!x.pt))});if(sid==="rb")base=base.map(rbF).filter(Boolean);if(ipoO)base=base.filter(function(h){return isIpo(h[2])});
+ var TG=null;if(isBR&&gTop){TG=topGrp(gWin);base=base.filter(function(h){var x=D.sectors[h[2]]||["",""];return TG.i[x[0]]||TG.s[x[1]]})}
  if(foM!=="a")base=base.filter(function(h){return isFo(h[2])===(foM==="o")});
  if(cbM!=="a")base=base.filter(function(h){return(cband(h[2])>0)===(cbM==="o")});
  var cm=parseFloat($("sc-c").value),tm=parseFloat($("sc-tn").value),has=base.some(function(h){return h[4]!=null}),n0=base.length;
@@ -565,7 +574,7 @@ function scr(sid){
  var K={s:function(h){return h[2]},i:function(h){return gname(D.sectors[h[2]],0)},g:function(h){return gname(D.sectors[h[2]],1)},d:function(h){return h[0]},p:function(h){return sid==="rb"&&h[6]!=null?h[6]*1000+h[3]:h[3]},c:function(h){return h[4]==null?-1:h[4]},t:function(h){return h[5]==null?-1:h[5]},mx:function(h){return mxVal(h[2],h[0])}};
  f.sort(function(a,b){if(GNF){var ga=gnScore(a[2],a[0]),gb=gnScore(b[2],b[0]);if(ga!==gb)return gb-ga}if(DOTF){var da=dotScore(a[2],a[0]),db=dotScore(b[2],b[0]);if(da!==db)return db-da}var x=K[sk](a),y=K[sk](b),c=typeof x==="number"?x-y:String(x).localeCompare(String(y));return c*sd||b[3]-a[3]||(a[2]<b[2]?-1:1)});
  Array.prototype.forEach.call(document.querySelectorAll("#sc-head th"),function(th){var on=th.dataset.k===sk;th.querySelector(".ar").textContent=on?(sd>0?" ▲":" ▼"):"";th.setAttribute("aria-sort",on?(sd>0?"ascending":"descending"):"none")});
- $("sc-h").textContent=f.length+" stocks"+(ind?" · "+ind:"")+(sg?" · "+sg:"");xRe();LIST=f.map(function(h){return h[2]});LN=s.n;var tb=$("sc-rows");tb.textContent="";
+ $("sc-h").textContent=f.length+" stocks"+(ind?" · "+ind:"")+(sg?" · "+sg:"")+(TG?" · "+(gWin==="w"?"weekly":"monthly")+" top 5 groups: "+TG.il.concat(TG.sl).join(", "):"");xRe();LIST=f.map(function(h){return h[2]});LN=s.n;var tb=$("sc-rows");tb.textContent="";
  f.slice(0,shown).forEach(function(h){var x=D.sectors[h[2]]||["","",""],tr=document.createElement("tr"),c=document.createElement("td");c.appendChild(tv(h[2]));
   if(isIpo(h[2])){var b=document.createElement("span");b.className="badge ipo";b.textContent="IPO";c.appendChild(b)}
   fcBadges(c,h[2],1,h[0]);gnBadges(c,h[2],h[0]);
@@ -877,13 +886,13 @@ function build(){var L=$("links");L.textContent="";
  function dd(label,g){var d=document.createElement("div");d.className="dd";var b=document.createElement("button");b.className="nl";b.dataset.g=g;b.setAttribute("aria-haspopup","true");b.setAttribute("aria-expanded","false");b.appendChild(document.createTextNode(label+" "));var c=document.createElement("span");c.className="car";c.textContent="▾";b.appendChild(c);var mn=document.createElement("div");mn.className="menu";d.appendChild(b);d.appendChild(mn);L.appendChild(d);return mn}
  var s=dd("Sector & Group Movers","scr");SC.forEach(function(x){if(NOGRP[x.id])return;item(s,x.id.replace("_","-"),x.ic,x.n,x.k,inWin(x.id,x.def==="d"?"d":"w").length)});
  if(!G&&!GR)G=gsample();var g=dd("Screener","gann");
- item(g,"gann-pt","P·T","Price-to-Time","#6aa2ff",gc("pt"));item(g,"gann-369","369","3-6-9 Time Cluster","#c98af0",gc("cb"));item(g,"gann-both","P·T+369","369 + Price-to-Time","#4ad6a7",gcB());item(g,"gann-gap","GAP","Gap Up","#f0b429",gpRows("").length);item(g,"gann-bb","BB","BB","#4ad6a7",bbRows("").length);item(g,"mb","MB","MB","#ff6fae",inWin("mb","d").length);item(g,"pb","PB","PB","#4ad6a7",inWin("pb","d").length);item(g,"sgb","SG","SG Babies","#f0b429",inWin("sgb","d").length);item(g,"rb","RB","RB (Repeat Burst)","#ff8a5c",inWin("rb","d").map(rbF).filter(Boolean).length);
+ item(g,"gann-pt","P·T","Price-to-Time","#6aa2ff",gc("pt"));item(g,"gann-369","369","3-6-9 Time Cluster","#c98af0",gc("cb"));item(g,"gann-both","P·T+369","369 + Price-to-Time","#4ad6a7",gcB());item(g,"gann-gap","GAP","Gap Up","#f0b429",gpRows("").length);item(g,"gann-bb","BB","BB","#4ad6a7",bbRows("").length);item(g,"mb","MB","MB","#ff6fae",inWin("mb","d").length);item(g,"pb","PB","PB","#4ad6a7",inWin("pb","d").length);item(g,"sgb","SG","SG Babies","#f0b429",inWin("sgb","d").length);item(g,"rb","RB","RB (Repeat Burst)","#ff8a5c",inWin("rb","d").map(rbF).filter(Boolean).length);item(g,"bra","BA","Breakout Retest A","#5bd0ff",inWin("bra","d").length);item(g,"brb","BR","Breakout Retest B","#b48cff",inWin("brb","d").length);
  var t=dd("Tools","tools");item(t,"tools-sector","MAP","Sector Mapping","#8f9bff",tlRows().length);item(t,"tools-setups","SET","Setups to Focus","#f0b429",stTodayCount());item(t,"circuit-changes","%","Circuit Changes","#ff8a5c",ccRows().length)}
 function route(){var id=location.hash.slice(1)||"home";cur=id;document.body.classList.remove("open");
  Array.prototype.forEach.call(document.querySelectorAll(".item"),function(a){a.classList.toggle("on",a.dataset.id===id)});var grp=id==="home"?"":id==="monitor"?"monitor":(id==="tools-sector"||id==="tools-setups"||id==="circuit-changes")?"tools":((id.indexOf("gann")===0||NOGRP[id])?"gann":"scr");Array.prototype.forEach.call(document.querySelectorAll("[data-g]"),function(a){a.classList.toggle("on",a.dataset.g===grp)});
  var sid=id.replace("-","_"),isS=!!SCI[sid],isG=id==="gann-pt"||id==="gann-369"||id==="gann-both";
  $("v-home").hidden=id!=="home";$("v-monitor").hidden=id!=="monitor";$("v-scr").hidden=!isS;$("v-gann").hidden=!isG;$("v-gap").hidden=id!=="gann-gap";$("v-bb").hidden=id!=="gann-bb";$("v-cc").hidden=id!=="circuit-changes";$("v-tools").hidden=id!=="tools-sector";$("v-setups").hidden=id!=="tools-setups";fcNotes();$("dpbar").hidden=!(isS||isG||id==="gann-gap"||id==="gann-bb"||id==="circuit-changes"||id==="tools-sector");$("dlg").hidden=!(isS||isG||id==="gann-gap"||id==="gann-bb");var dl=dlist();$("dp-i").value=ASOF;$("dp-i").min=dl[0]||"";$("dp-i").max=LATEST;$("dp-note").textContent=ASOF!==LATEST?(D&&D.demo?"Demo data: every date shows different sample stocks.":"Past date. Gann and Gap Up come from that day’s saved snapshot; Max Return = best price since then vs that day’s close."):"Latest data.";
- if(isS){if(!SCI[sid]||!D)return;if(SCI[sid].def==="d")per="d";else if(per==="d")per="w";q="";$("sc-q").value="";ind="";sg="";shown=40;scr(sid)}
+ if(isS){if(!SCI[sid]||!D)return;if(SCI[sid].def==="d"||BRS[sid])per="d";else if(per==="d")per="w";q="";$("sc-q").value="";ind="";sg="";shown=40;scr(sid)}
  if(isG)gann(id==="gann-pt"?"pt":id==="gann-369"?"369":"both");if(id==="gann-gap")gapup();if(id==="gann-bb")bbup();if(id==="circuit-changes")circ();if(id==="tools-sector")tools();if(id==="tools-setups")setupsPage();window.scrollTo(0,0)}
 function boot(){LATEST=D.updated;if(!ASOF||ASOF>LATEST)ASOF=LATEST;build();route();loadSetups()}
 $("sc-q").addEventListener("input",function(e){q=e.target.value;shown=40;scr(cur.replace("-","_"))});

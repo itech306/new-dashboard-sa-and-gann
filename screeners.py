@@ -10,6 +10,8 @@ Screeners (conditions copied from the Chartink queries):
   pb      PB                       no cool-off; Chartink query (EMA50 trend + range contraction + liquidity)
   rb      RB (Repeat Burst)        no cool-off; pichle 2 saal me 6 din me 25%+ (20-50% page par chun sakte ho) ki rally kam se kam 3 baar, liquidity 20 cr+ (10 / 20 / 50 cr)
   sgb     SG Babies                no cool-off; Chartink query (1.8x/1.19x/1.05x trend + range contraction + liquidity)
+  bra     Breakout Retest A        no cool-off; RSI pullback + range contraction + pichle 3-7 din me 320-din closing high (RSI>70)
+  brb     Breakout Retest B        no cool-off; A jaisa hi, bina breakout wali shart ke
   m14     50% in 14 days           cool-off 14 trading days
   m2      50% in 2 months (40d)    cool-off 40 trading days
   w5_20   20% in 5 days            cool-off 5 trading days
@@ -32,6 +34,7 @@ import pandas as pd
 MIN_PRICE = 20
 WEEK_MIN_PERIODS = 10   # weekly volume SMA(50) ke liye kam se kam itne weeks ka data
 IPO_DAYS = 365          # itne din ke andar listed stock "IPO" maana jaata hai
+BR_A_FIX_7D = False     # Breakout Retest A: True = 7 days ago wali line me bhi 7 days ago Close ka Max(320) (query ka typo theek)
 IPO_RELAX_SMA = False   # True: SMA50 ke liye sirf 10 din ka data bhi chalega (naye IPO ke liye)
 KEEP_DAYS = 100         # screener_data.json me itne calendar days ke hits rakhte hain
 
@@ -51,6 +54,8 @@ SCREENERS = [
     {"id": "pb",    "name": "PB",             "short": "PB",            "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "sgb",   "name": "SG Babies",      "short": "SG Babies",     "cooloff": 0,  "unit": "day",  "kind": "daily"},
     {"id": "rb",    "name": "RB (Repeat Burst)", "short": "RB",          "cooloff": 0,  "unit": "day",  "kind": "daily"},
+    {"id": "bra",   "name": "Breakout Retest A", "short": "Breakout Retest A", "cooloff": 0, "unit": "day", "kind": "daily"},
+    {"id": "brb",   "name": "Breakout Retest B", "short": "Breakout Retest B", "cooloff": 0, "unit": "day", "kind": "daily"},
     {"id": "w5_20", "name": "20% in 5 Days",    "short": "20% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "w5_13", "name": "13% in 5 Days",    "short": "13% in 5 Days", "cooloff": 5,  "unit": "day",  "kind": "cool"},
     {"id": "m14",   "name": "50% in 14 Days",   "short": "50% in 14 Days", "cooloff": 14, "unit": "day",  "kind": "cool"},
@@ -153,6 +158,25 @@ def load_listing(path):
     return m
 
 
+def rsi_wilder(c: pd.DataFrame, n: int = 14) -> pd.DataFrame:
+    """RSI(14), Wilder smoothing (Chartink jaisa). c = close pivot (date x symbol)."""
+    d = c.diff()
+    up, dn = d.clip(lower=0), (-d).clip(lower=0)
+    au = up.ewm(alpha=1 / n, adjust=False, min_periods=n).mean()
+    ad = dn.ewm(alpha=1 / n, adjust=False, min_periods=n).mean()
+    return 100 - 100 / (1 + au / ad.replace(0, np.nan))
+
+
+def period_rsi(close: pd.DataFrame, rule: str) -> pd.DataFrame:
+    """Weekly / Monthly RSI(14), har trading din par. Chalta hua (adhura) week/month bhi ginta hai
+    (Chartink me bhi current candle count hoti hai). rule: 'W-FRI' ya 'M'."""
+    idx = pd.to_datetime(close.index)
+    per = idx.to_period(rule)
+    pc = close.groupby(per).last()            # har period ka last close (aaj tak)
+    r = rsi_wilder(pc, 14)
+    return pd.DataFrame(r.reindex(per).values, index=close.index, columns=close.columns)
+
+
 def compute_hits(hist: pd.DataFrame, fo_set=None):
     """Return {screener_id: (shown_bool_df, pct_df)} plus the list of dates."""
     hist = hist.sort_values(["date", "symbol"])
@@ -250,6 +274,32 @@ def compute_hits(hist: pd.DataFrame, fo_set=None):
     rb = any_ok & (rb_L >= RB_LIQ_BASE_CR)
     res["rb"] = (cooloff(rb, 0), rb_lret[RB_MIN_RETURN])
     rb_info = {"cnt": rb_cnt, "last": rb_last, "ret": rb_lret, "L": rb_L, "dates": list(close.index)}
+
+    # 1e) Breakout Retest A / B (Chartink queries, daily, no cool-off).
+    #     Common (A aur B dono):
+    #       Daily RSI(14) < 65,  Weekly RSI(14) > 60,  Monthly RSI(14) > 60
+    #       Liquidity (koi ek): Close*Volume/1 crore > 10  YA  SMA(Close*Volume, 20) > 10 crore
+    #       Range contraction (R = High-Low): (R - Min15(R)) * 5 < Max15(R) - Min5(R)  [aaj]
+    #                         YA (wahi aaj ki shart AUR (R1 - Min15(R)1) * 5 < Max5(R)1 - Min15(R)1  [kal])
+    #     Sirf A me extra: pichle 3..7 din me se koi ek din k aisa ho ki us din
+    #         RSI(14) > 70  AUR  Close >= Max(320, Close)   (320 din ka closing high)
+    #       (Chartink query me 7 days ago wali line me "Max(320, 3 days ago Close)" likha hai, wahi literal rakha hai;
+    #        BR_A_FIX_7D = True karne par ye 7 days ago Close ke hisaab se hoga, baaki 3-6 jaisa.)
+    rsi_d = rsi_wilder(aC, 14)
+    rsi_w = period_rsi(aC, "W-FRI")
+    rsi_m = period_rsi(aC, "M")
+    br_liq = (cv / 1e7 > 10) | (cv.rolling(20, min_periods=20).mean() > 1e8)
+    br_a_rng = (R - mn15) * 5 < (mx15 - mn5)
+    br_b_rng = (R.shift(1) - mn15.shift(1)) * 5 < (mx5r.shift(1) - mn15.shift(1))
+    br_core = (rsi_d < 65) & (rsi_w > 60) & (rsi_m > 60) & br_liq & (br_a_rng | (br_a_rng & br_b_rng))
+    hi320 = aC.rolling(320, min_periods=320).max()          # Max(320, Close), aaj samet
+    hi320_3 = hi320.shift(3)                                 # Max(320, 3 days ago Close) (series shift)
+    brk_any = pd.DataFrame(False, index=close.index, columns=close.columns)
+    for k in (3, 4, 5, 6, 7):
+        ref = hi320.shift(k) if (k < 7 or BR_A_FIX_7D) else hi320_3.shift(k)
+        brk_any |= (rsi_d.shift(k) > 70) & (aC.shift(k) >= ref)
+    res["bra"] = (cooloff(br_core & brk_any, 0), pct)
+    res["brb"] = (cooloff(br_core, 0), pct)
 
     # 2) 50% in 14 days: close / lowest low of last 14 days >= 1.5
     low14 = aL.rolling(14, min_periods=14).min()
